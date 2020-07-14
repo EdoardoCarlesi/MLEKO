@@ -1,3 +1,9 @@
 *.tmp
 *.out
-
+activate
+data
+data/
+models/*
+activate_nogpu
+__pycache__/
+*.swp
