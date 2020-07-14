@@ -21,6 +21,11 @@ from keras.preprocessing.image import image
 
 # Choose wether to load or save the neural network model
 train_model = False
+#train_model = True
+
+class_mode = 'binary'
+#class_mode = 'categorical'
+
 local_path = '/home/edoardo/CLUES/CluesML/'
 
 # Dataset path
@@ -58,7 +63,14 @@ n_units = 32
 classifier.add(Dense(units=n_units, activation='relu'))
 
 # Output layer
-classifier.add(Dense(units=1, activation='sigmoid'))
+if class_mode == 'binary':
+    classifier.add(Dense(units=1, activation='sigmoid'))
+
+elif class_mode == 'categorical':
+    classifier.add(Dense(units=2, activation='softmax'))
+else:
+    print('class_mode = ', class_mode, ' not supported.')
+    exit()
 
 classifier.compile(optimizer='adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
 
@@ -76,8 +88,11 @@ steps_per_epoch = 100
 validation_steps = 50
 
 # Save (or load) the CNN classifier
-model_file_name = local_path + '/models/halo_lg_classifier_pix' + str(n_input) + '.keras'
-#model_file_name = local_path + '/models/halo_lg_classifier_v1_pix' + str(n_input) + '.keras'
+if class_mode == 'binary':
+    model_file_name = local_path + '/models/halo_lg_classifier_pix' + str(n_input) + '.keras'
+
+elif class_mode == 'categorical':
+    model_file_name = local_path + '/models/halo_lg_classifier_categorical_softmax_' + str(n_input) + '.keras'
 
 if train_model == True:
     
@@ -86,13 +101,13 @@ if train_model == True:
                                                  target_size = (n_input, n_input),
                                                  batch_size = batch_size,
                                                  color_mode = 'grayscale',
-                                                 class_mode = 'binary')
+                                                 class_mode = class_mode)
 
     test_set = test_datagen.flow_from_directory(test_path, 
                                             target_size = (n_input, n_input),
                                             batch_size = batch_size,
                                             color_mode = 'grayscale',
-                                            class_mode = 'binary')
+                                            class_mode = class_mode)
 
     classifier.fit_generator(training_set,
                          steps_per_epoch = steps_per_epoch,
@@ -102,20 +117,30 @@ if train_model == True:
 
     classifier.save(model_file_name)
 
-else:
-#    img_path = []
-#    img_path.append('/home/edoardo/CLUES/PyRCODIO/output/cluster_62_14_09.12.rho_no_labels_SGYSGZ.png')
-#    img_path.append('/home/edoardo/CLUES/PyRCODIO/output/lg_34_13_09_rho_no_labels_SGZSGX.png')
-
+else:   # We load a pre-compiled, fitted and trained model
+    
+    # Set some properties of the test images
+    verbose = True
     path_lg='/home/edoardo/CLUES/PyRCODIO/output/test_set/lg/'
     path_cl='/home/edoardo/CLUES/PyRCODIO/output/test_set/cluster/'
+
+    # Find all the images within a given folder (images NOT used for the training)
     img_path_lg = t.find_images_in_folder(path=path_lg)
     img_path_cl = t.find_images_in_folder(path=path_cl)
-    #print(img_path_lg)
 
-    #print(model_file_name)
-    results_lg = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_lg, n_input=n_input) #, color_mode='grayscale')   
-    results_cl = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_cl, n_input=n_input) #, color_mode='grayscale')   
+    '''
+    img_path_shit = ['/home/edoardo/Pictures/images.jpeg']
+    results_lg = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_shit, n_input=n_input, verbose=verbose, class_mode=class_mode) 
+    '''
+
+    path_mix = '/home/edoardo/CLUES/PyRCODIO/output/test_set/mix/'
+    img_path_mix = t.find_images_in_folder(path=path_mix)
+    results_mix = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_mix, n_input=n_input, verbose=verbose, class_mode=class_mode) 
+
+    '''
+    # Now feed the images to the classifier and check the results
+    results_lg = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_lg[0:20], n_input=n_input, verbose=verbose, class_mode=class_mode) 
+    results_cl = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_cl[0:2], n_input=n_input, verbose=verbose, class_mode=class_mode) 
     
     n_lg = len(img_path_lg)
     n_cl = len(img_path_cl)
@@ -123,10 +148,10 @@ else:
     n_res_lg = np.sum(results_lg)    
     n_res_cl = np.sum(results_cl)
 
+    # Some final statistics
     print('N LG: ', n_lg, ' result: ', n_res_lg, ' accuracy: ', float(n_lg - n_res_lg)/n_lg)
-    print('N Cluster: ', n_cl, ' result: ', n_res_cl, ' accuracy: ', float(n_res_cl)/n_cl)
-
-
+    print('N Cluster: ', n_cl, ' result: ', n_res_cl, ' accuracy: ', 1.0 - float(n_res_cl)/n_cl)
+    '''
 
 
 
