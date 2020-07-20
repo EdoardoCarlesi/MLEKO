@@ -7,3 +7,4 @@ models/*
 activate_nogpu
 __pycache__/
 *.swp
+*.pyc
