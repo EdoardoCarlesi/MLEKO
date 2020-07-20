@@ -29,8 +29,6 @@ class_mode = 'binary'
 
 local_path = '/home/edoardo/CLUES/CluesML/'
 
-# Dataset path
-
 """
     CNN architecture versions:
     - v0: n_feat_dim = 4, n_feat = 16, n_input = 100, n_pool_dim = 3, n_units = 32. Conv2d, pooling, conv2d, pooling, Dense, Output
@@ -53,9 +51,8 @@ local_path = '/home/edoardo/CLUES/CluesML/'
 
 """
 
-
 # Select different CNN versions
-version = '3'
+version = '5'
 
 cm = CNN_Model(version = version)
 
@@ -76,7 +73,7 @@ classifier.add(MaxPooling2D(pool_size = (cm.n_pool_dim, cm.n_pool_dim)))
 classifier.add(Flatten())
 
 # Build the fully connected ANN. First hidden layer
-classifier.add(Dense(units=n_units, activation='relu'))
+classifier.add(Dense(units=cm.n_units, activation='relu'))
 
 # Output layer
 if class_mode == 'binary':
@@ -92,8 +89,8 @@ classifier.compile(optimizer='adam', loss = 'binary_crossentropy', metrics = ['a
 
 # Increase the data size
 train_datagen = ImageDataGenerator(rescale = 1./255,
-                                   shear_range = shear_range,
-                                   zoom_range = zoom_range)
+                                   shear_range = cm.shear_range,
+                                   zoom_range = cm.zoom_range)
 
 test_datagen = ImageDataGenerator(rescale = 1./255)
 
@@ -107,23 +104,23 @@ elif class_mode == 'categorical':
 if train_model == True:
     
     # Set grayscale for the color mode to avoid the three RGB layers
-    training_set = train_datagen.flow_from_directory(train_path, 
-                                                 target_size = (n_input, n_input),
-                                                 batch_size = batch_size,
+    training_set = train_datagen.flow_from_directory(cm.train_path, 
+                                                 target_size = (cm.n_input, cm.n_input),
+                                                 batch_size = cm.batch_size,
                                                  color_mode = 'grayscale',
                                                  class_mode = class_mode)
 
-    test_set = test_datagen.flow_from_directory(test_path, 
-                                            target_size = (n_input, n_input),
-                                            batch_size = batch_size,
+    test_set = test_datagen.flow_from_directory(cm.test_path, 
+                                            target_size = (cm.n_input, cm.n_input),
+                                            batch_size = cm.batch_size,
                                             color_mode = 'grayscale',
                                             class_mode = class_mode)
 
     classifier.fit_generator(training_set,
-                         steps_per_epoch = steps_per_epoch,
-                         epochs = n_epochs,
+                         steps_per_epoch = cm.steps_per_epoch,
+                         epochs = cm.n_epochs,
                          validation_data = test_set,
-                         validation_steps = validation_steps)
+                         validation_steps = cm.validation_steps)
 
     print('Saving trained CNN to: ', model_file_name)
     classifier.save(model_file_name)
@@ -150,8 +147,8 @@ else:   # We load a pre-compiled, fitted and trained model
     '''
 
     # Now feed the images to the classifier and check the results
-    results_lg = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_lg[:], n_input=n_input, verbose=verbose, class_mode=class_mode) 
-    results_cl = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_cl[:], n_input=n_input, verbose=verbose, class_mode=class_mode) 
+    results_lg = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_lg[:], n_input=cm.n_input, verbose=verbose, class_mode=class_mode) 
+    results_cl = t.check_cluster_lg_classifier(model_file_name=model_file_name, imgs=img_path_cl[:], n_input=cm.n_input, verbose=verbose, class_mode=class_mode) 
     
     n_lg = len(img_path_lg)
     n_cl = len(img_path_cl)
