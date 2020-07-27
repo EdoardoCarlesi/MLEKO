@@ -85,6 +85,13 @@ def find_images_in_folder(path=None, extension='png'):
 
     return img_list
 
+'''
+    Mean absolute percentage error
+'''
+def MAPE(y_true, y_pred):
+    d_y = np.abs(y_true - y_pred)
+    d_y = d_y / y_true
 
+    return d_y
 
 
