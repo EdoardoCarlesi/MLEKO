@@ -6,10 +6,6 @@
     https://github.com/EdoardoCarlesi/CluesML
 '''
 
-#from sklearn.tree import DecisionTreeClassifier
-#from sklearn.ensemble import RandomForestClassifier
-#from sklearn.metrics import classification_report, confusion_matrix
-
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestRegressor
@@ -49,15 +45,11 @@ data.drop(['lambda_MW', 'lambda_M31'], axis=1, inplace=True)
 print(data.info())
 print(data.head())
 '''
-#sns.pairplot(data)
 
-#train_type = 'mass'
-#train_cols = ['R','Vrad','Vtan']
-#test_col = 'Mtot'
-
-train_type = 'mass_ratio'
-train_cols = ['R','Vrad', 'Mtot']
-test_col = 'Mratio'
+#train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
+train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
+#train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_m31'
+#train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
 #regressor = LinearRegression(); reg_name = 'linear_reg' + '_' + train_type
 regressor = RandomForestRegressor(); reg_name = 'randomforest_reg' + '_' + train_type
@@ -90,10 +82,41 @@ mae = metrics.mean_absolute_error(y_test, predictions)
 msq = metrics.mean_squared_error(y_test, predictions)
 mape = t.MAPE(y_test, predictions)
 
-if train_type == 'mass':
+
+if train_type == 'mass_total':
     print('MAE: ', mae/1.0e+12, ' MSQ: ', np.sqrt(msq)/1.0e+12, ' MAPE: ', np.mean(mape) )
-    ax = sns.scatterplot(np.log10(y_test), np.log10(predictions))
-    ax.set(xlabel='M_tot (true)', ylabel='M_tot (pred)')
+    cols = ['M_tot_true', 'M_tot_pred']
+    data = pd.DataFrame() 
+    data[cols[0]] = np.log10(y_test)
+    data[cols[1]] = np.log10(predictions)
+    sns.lmplot(x=cols[0], y=cols[1], data=data)
+
+    slope = np.polyfit(np.log10(y_test), np.log10(predictions), 1)
+    print('Slope: ', slope)
+
+elif train_type == 'mass_m31':
+    print('MAE: ', mae/1.0e+12, ' MSQ: ', np.sqrt(msq)/1.0e+12, ' MAPE: ', np.mean(mape) )
+    ax = sns.scatterplot(x=np.log10(y_test), y=np.log10(predictions))
+    cols = ['M_M31_true', 'M_M31_pred']
+    data = pd.DataFrame() 
+    data[cols[0]] = np.log10(y_test)
+    data[cols[1]] = np.log10(predictions)
+    sns.lmplot(x=cols[0], y=cols[1], data=data)
+
+    slope = np.polyfit(np.log10(y_test), np.log10(predictions), 1)
+    print('Slope: ', slope)
+
+elif train_type == 'mass_mw':
+    print('MAE: ', mae/1.0e+12, ' MSQ: ', np.sqrt(msq)/1.0e+12, ' MAPE: ', np.mean(mape) )
+    cols = ['M_MW_true', 'M_MW_pred']
+    data = pd.DataFrame() 
+    data[cols[0]] = np.log10(y_test)
+    data[cols[1]] = np.log10(predictions)
+    sns.lmplot(x=cols[0], y=cols[1], data=data)
+
+    slope = np.polyfit(np.log10(y_test), np.log10(predictions), 1)
+    print('Slope: ', slope)
+
 elif train_type == 'mass_ratio':
     print('MAE: ', mae, ' MSQ: ', np.sqrt(msq), ' MAPE: ', np.mean(mape) )
     ax = sns.scatterplot(y_test, predictions)

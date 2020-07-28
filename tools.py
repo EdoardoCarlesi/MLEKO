@@ -7,7 +7,7 @@
 '''
 
 from keras.models import Sequential
-from keras.preprocessing.image import image
+#from keras.preprocessing.image import image #FIXME!!!!
 import pandas as pd
 import numpy as np
 import keras as ks
