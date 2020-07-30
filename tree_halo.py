@@ -47,7 +47,8 @@ print(data.head())
 '''
 
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
-train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
+#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
+train_cols = ['Mtot','R', 'Vtan']; test_col = 'Vrad'; train_type = 'vel_rad'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_m31'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
@@ -119,8 +120,18 @@ elif train_type == 'mass_mw':
 
 elif train_type == 'mass_ratio':
     print('MAE: ', mae, ' MSQ: ', np.sqrt(msq), ' MAPE: ', np.mean(mape) )
+    cols = ['M_ratio_true', 'M_ratio_pred']
     ax = sns.scatterplot(y_test, predictions)
     ax.set(xlabel='M_ratio (true)', ylabel='M_ratio (pred)')
+
+elif train_type == 'vel_rad':
+    print('MAE: ', mae/100.0, ' MSQ: ', np.sqrt(msq)/100.0, ' MAPE: ', np.mean(mape) )
+    ax = sns.scatterplot(y_test, predictions)
+
+    slope = np.polyfit(y_test, predictions, 1)
+    print('Slope: ', slope)
+    ax.set(xlabel='V_rad (true)', ylabel='V_rad (pred)')
+
 
 if reg_name == 'randomforest_reg' + '_' + train_type:
     importances = regressor.feature_importances_
