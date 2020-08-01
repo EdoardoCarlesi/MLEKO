@@ -14,6 +14,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 
+import read_files as rf
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -21,18 +22,8 @@ import numpy as np
 import tools as t
 
 sns.set_style('whitegrid')
-data_00 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_00.csv'
-train_00 = pd.read_csv(data_00)
-data_01 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_01.csv'
-train_01 = pd.read_csv(data_01)
-data_02 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_02.csv'
-train_02 = pd.read_csv(data_02)
-data_03 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_03.csv'
-train_03 = pd.read_csv(data_03)
-data_04 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_04.csv'
-train_04 = pd.read_csv(data_04)
 
-data = pd.concat([train_00, train_01, train_02, train_03, train_04])
+data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
 
 data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
@@ -46,9 +37,17 @@ print(data.info())
 print(data.head())
 '''
 
+grid = 128
+#grid = 32
+#grid = 64
+l1 = 'l1_' + str(grid); l2 = 'l2_' + str(grid); l3 = 'l3_' + str(grid)
+
+#train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio_lambda'
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
+train_cols = ['R','Vrad', 'Vtan', l1, l2, l3]; test_col = 'Mtot'; train_type = 'mass_total_lambda' + str(grid)
+#train_cols = ['R','Vrad', 'Vtan', l1, l2, l3]; test_col = 'Mtot'; train_type = 'mass_total_lambda'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
-train_cols = ['Mtot','R', 'Vtan']; test_col = 'Vrad'; train_type = 'vel_rad'
+#train_cols = ['Mtot','R', 'Vtan']; test_col = 'Vrad'; train_type = 'vel_rad'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_m31'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
@@ -84,7 +83,7 @@ msq = metrics.mean_squared_error(y_test, predictions)
 mape = t.MAPE(y_test, predictions)
 
 
-if train_type == 'mass_total':
+if train_type == 'mass_total' or train_type == 'mass_total_lambda' + str(grid): 
     print('MAE: ', mae/1.0e+12, ' MSQ: ', np.sqrt(msq)/1.0e+12, ' MAPE: ', np.mean(mape) )
     cols = ['M_tot_true', 'M_tot_pred']
     data = pd.DataFrame() 

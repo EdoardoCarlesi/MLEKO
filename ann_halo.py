@@ -28,25 +28,20 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import numpy as np
+import read_files as rf
 import tools as t
 
 trainANN = True
-#trainANN = False
+trainANN = False
 ann_model_base_name = 'output/ann_model_'
 
 sns.set_style('whitegrid')
-data_00 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_00.csv'
-train_00 = pd.read_csv(data_00)
-data_01 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_01.csv'
-train_01 = pd.read_csv(data_01)
-data_02 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_02.csv'
-train_02 = pd.read_csv(data_02)
-data_03 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_03.csv'
-train_03 = pd.read_csv(data_03)
-data_04 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_04.csv'
-train_04 = pd.read_csv(data_04)
 
-data = pd.concat([train_00, train_01, train_02, train_03, train_04])
+#data = rf.read_lg_fullbox()
+data = rf.read_lg_fullbox_vweb()
+
+#print(data.columns)
+#print(data[['Xc_LG', 'x_64']])
 
 data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
@@ -68,11 +63,11 @@ train_cols = ['R', 'Vrad']; pred_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan']; pred_col = 'M_M31'; train_type = 'mass_m31'
 #train_cols = ['R','Mtot', 'Vtan']; pred_col = 'Vrad'; train_type = 'vrad'
 
-
 '''
 vtan_max = 150.0
 data = data[data['Vtan'] < vtan_max]
 '''
+
 ann_name = ann_model_base_name + train_type + '.keras'
 
 # Properly rescale all the units
@@ -97,11 +92,9 @@ for col in train_cols:
 
 #data['R'].plot.hist(bins=50)
 #plt.show()
-
 #data['Vrad'] = np.log((data['Vrad'] - vrad_max)) # / 100.0
 #data['Vrad'] = np.power((data['Vrad'] - vrad_max), 0.3)
 #data['Vtan'] = np.log(data['Vtan'])
-
 #sns.pairplot(data[train_cols])
 #plt.show()
 
@@ -122,8 +115,6 @@ print('Total train size: ', len(X))
 test_size = 0.2
 rand_state = 1234
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = rand_state)
-
-#print(y_train)
 
 # Feature Scaling
 sc = StandardScaler()
@@ -155,11 +146,11 @@ batch_size = 30
 n_input = len(train_cols)
 
 activation1 = 'relu'
+'''
 activation1 = 'softmax'
 activation1 = 'selu'
 activation1 = 'linear'
 
-'''
 activation1 = 'tanh'
 '''
 
