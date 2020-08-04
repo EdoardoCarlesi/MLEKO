@@ -11,10 +11,9 @@ import numpy as np
 
 
 '''
-    Simply read all the fullbox LG data, no Vweb
+    Read all the fullbox LG data for each box, without VWeb information
 '''
-def read_lg_fullbox():
-    file_base = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox'
+def read_lg_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox'):
 
     data_00 = file_base + '_00.csv'
     train_00 = pd.read_csv(data_00)
@@ -32,13 +31,13 @@ def read_lg_fullbox():
     return data
 
 '''
-    Read vweb data
+    Read vweb ONLY at the LG position
 '''
-def read_lg_vweb(grid_size=64):
+def read_lg_vweb(grid_size=64, file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_vweb_'):
     
     grid = '%03d' % grid_size
+    file_base = file_base + grid
 
-    file_base = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_vweb_' + grid
     data_00 = file_base + '_00.csv'
     train_00 = pd.read_csv(data_00)
     data_01 = file_base + '_01.csv'

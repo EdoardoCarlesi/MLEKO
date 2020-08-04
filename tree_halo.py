@@ -9,6 +9,7 @@
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
@@ -25,6 +26,8 @@ sns.set_style('whitegrid')
 
 data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
 
+print(data.info())
+
 data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
 
@@ -37,22 +40,30 @@ print(data.info())
 print(data.head())
 '''
 
-grid = 128
-#grid = 32
+#grid = 128
+grid = 32
 #grid = 64
 l1 = 'l1_' + str(grid); l2 = 'l2_' + str(grid); l3 = 'l3_' + str(grid)
+dens = 'dens_' + str(grid)
+
+n_estimators = 1000
+max_depth = 3
+min_samples_split = 10
 
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio_lambda'
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
-train_cols = ['R','Vrad', 'Vtan', l1, l2, l3]; test_col = 'Mtot'; train_type = 'mass_total_lambda' + str(grid)
-#train_cols = ['R','Vrad', 'Vtan', l1, l2, l3]; test_col = 'Mtot'; train_type = 'mass_total_lambda'
+train_cols = ['R','Vrad', 'Vtan', l1, l2, l3, dens]; test_col = 'Mtot'; train_type = 'mass_total_lambda' + str(grid)
+#train_cols = ['R','Vrad', 'Vtan', dens]; test_col = 'Mtot'; train_type = 'mass_total'
+#train_cols = ['R','Vrad', dens]; test_col = 'Mtot'; train_type = 'mass_total'
+#train_cols = ['R','Vrad', 'Vtan', dens]; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['Mtot','R', 'Vtan']; test_col = 'Vrad'; train_type = 'vel_rad'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_m31'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
 #regressor = LinearRegression(); reg_name = 'linear_reg' + '_' + train_type
-regressor = RandomForestRegressor(); reg_name = 'randomforest_reg' + '_' + train_type
+#regressor = RandomForestRegressor(n_estimators = n_estimators); reg_name = 'randomforest_reg' + '_' + train_type
+regressor = GradientBoostingRegressor(n_estimators = n_estimators, max_depth = max_depth, min_samples_split = min_samples_split); reg_name = 'gradientboost_reg' + '_' + train_type
 
 X = data[train_cols]
 y = data[test_col]
