@@ -27,35 +27,32 @@ sns.set_style('whitegrid')
 
 data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
 
-print(data.info())
+all_columns = ['M_M31', 'M_MW', 'R', 'Vrad', 'Vtan', 'Nsub_M31', 'Nsub_MW', 'Npart_M31', 'Npart_MW', 'Vmax_MW', 'Vmax_M31', 'lambda_MW',
+       'lambda_M31', 'cNFW_MW', 'c_NFW_M31', 'Xc_LG', 'Yc_LG', 'Zc_LG', 'AngMom', 'Energy', 'x_32', 'y_32', 'z_32', 'l1_32', 'l2_32', 'l3_32', 'dens_32', 
+       'x_64', 'y_64', 'z_64', 'l1_64', 'l2_64', 'l3_64', 'dens_64', 'x_128', 'y_128', 'z_128', 'l1_128', 'l2_128', 'l3_128', 'dens_128', 'Mtot', 'Mratio', 'l_tot_128']
 
-data['Mtot'] = data['M_M31'] + data['M_MW']
-data['Mratio'] = data['M_M31'] / data['M_MW']
-
-'''
-data.drop(['sub_code', 'simu_code', 'Nsub_M31', 'Nsub_MW', 'Xc_LG', 'Yc_LG', 'Zc_LG'], axis=1, inplace=True)
-data.drop(['cNFW_MW', 'c_NFW_M31', 'Vmax_MW', 'Vmax_M31'], axis=1, inplace=True)
-data.drop(['Npart_MW', 'Npart_M31'], axis=1, inplace=True)
-data.drop(['lambda_MW', 'lambda_M31'], axis=1, inplace=True)
 print(data.info())
-print(data.head())
-'''
 
 grid = 128
 
 l1 = 'l1_' + str(grid); l2 = 'l2_' + str(grid); l3 = 'l3_' + str(grid)
 dens = 'dens_' + str(grid)
-
 l_tot = 'l_tot_' + str(grid)
+
+# Add some useful combinations to the dataframe
+data['Mtot'] = data['M_M31'] + data['M_MW']
+data['Mratio'] = data['M_M31'] / data['M_MW']
 data[l_tot] = data[l1] + data[l2] + data[l3]
 
 #sns.lmplot(x=dens, y=l_tot, data=data)
 #plt.show()
 
+# Set some parameters for the random forest and gradient boosted trees
 n_estimators = 1000
 max_depth = 4
 min_samples_split = 12
 
+# Regression type, feature selection and target variable
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio_lambda'
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R','Vrad', 'Vtan', l1, l2, l3, dens]; test_col = 'Mtot'; train_type = 'mass_total_lambda' + str(grid)
@@ -69,20 +66,30 @@ train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_m31'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
+# Select the regressor type
 #regressor = LinearRegression(); reg_name = 'linear_reg' + '_' + train_type
 regressor = RandomForestRegressor(n_estimators = n_estimators); reg_name = 'randomforest_reg' + '_' + train_type
 #regressor = GradientBoostingRegressor(n_estimators = n_estimators, max_depth = max_depth, min_samples_split = min_samples_split); reg_name = 'gradientboost_reg' + '_' + train_type
-
-X = data[train_cols]
-y = data[test_col]
 
 #data['AngMom'] = data['AngMom'].apply(lambda x: np.log10(x))
 #data['AngMom'].hist(bins=100)
 #plt.show()
 
-pca_cols = ['R','Vrad', 'Vtan', 'AngMom', 'Energy', l1, l2, l3, dens]
+# Do a PCA to check the data
+pca_percent = 0.9
+#pca_percent = None
+pca_cols = all_columns
+#pca_cols = ['R','Vrad', 'Vtan', 'AngMom', 'Energy', l1, l2, l3, dens]
+data_pca = t.data_pca(data=data, columns=pca_cols, pca_percent=pca_percent)
 
-data_pca = t.data_pca(data=data, columns=pca_cols)
+print('PCA at ', pca_percent, ' n_components: ', len(data_pca.columns), ' n_original: ', len(all_columns))
+
+print(data_pca.info())
+print(data_pca.head())
+
+# Select the features for the training and test set
+X = data[train_cols]
+y = data[test_col]
 
 print('Total size: ', X.count())
 

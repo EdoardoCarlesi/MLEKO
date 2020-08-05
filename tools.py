@@ -17,13 +17,17 @@ import cv2
 '''
     Do a PCA analysis of a dataset
 '''
-def data_pca(data=None, columns=None):
+def data_pca(data=None, columns=None, pca_percent=None):
 
     print('Doing PCA reduction of dataset: ', columns)
 
     # Initialize PCA
-    n_components = len(columns)
-    pca = PCA(n_components = n_components)
+    if pca_percent == None:
+        n_components = len(columns)
+        pca = PCA(n_components = n_components)
+
+    else:
+        pca = PCA(pca_percent)
 
     # Select these data from the full dataframe
     X = data[columns]
@@ -36,8 +40,14 @@ def data_pca(data=None, columns=None):
     # Transform
     principal_components = pca.fit_transform(X)
 
+    if pca_percent != None:
+        n_components = principal_components.shape[1]
+
+    # Rename the feature columns in the new basis
+    feat_cols = ['feature: ' + str(i) for i in range(0, n_components)]
+
     # Put the PCA transformed data into a DataFrame
-    pc_df = pd.DataFrame(data=principal_components, columns=columns)
+    pc_df = pd.DataFrame(data=principal_components, columns=feat_cols)
 
     # Plot some information
     print('PCA explained variance ratio is: ', pca.explained_variance_ratio_)
