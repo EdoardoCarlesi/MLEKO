@@ -9,7 +9,6 @@
 import pandas as pd
 import numpy as np
 
-
 '''
     Read all the fullbox LG data for each box, without VWeb information
 '''

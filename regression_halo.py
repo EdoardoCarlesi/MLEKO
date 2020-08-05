@@ -15,12 +15,13 @@ from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 
-import read_files as rf
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import numpy as np
+import read_files as rf
 import tools as t
+
 
 sns.set_style('whitegrid')
 
@@ -40,19 +41,26 @@ print(data.info())
 print(data.head())
 '''
 
-#grid = 128
-grid = 32
-#grid = 64
+grid = 128
+
 l1 = 'l1_' + str(grid); l2 = 'l2_' + str(grid); l3 = 'l3_' + str(grid)
 dens = 'dens_' + str(grid)
 
+l_tot = 'l_tot_' + str(grid)
+data[l_tot] = data[l1] + data[l2] + data[l3]
+
+#sns.lmplot(x=dens, y=l_tot, data=data)
+#plt.show()
+
 n_estimators = 1000
-max_depth = 3
-min_samples_split = 10
+max_depth = 4
+min_samples_split = 12
 
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio_lambda'
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
-train_cols = ['R','Vrad', 'Vtan', l1, l2, l3, dens]; test_col = 'Mtot'; train_type = 'mass_total_lambda' + str(grid)
+#train_cols = ['R','Vrad', 'Vtan', l1, l2, l3, dens]; test_col = 'Mtot'; train_type = 'mass_total_lambda' + str(grid)
+#train_cols = ['R','Vrad', 'AngMom', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
+train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan', dens]; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', dens]; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan', dens]; test_col = 'Mtot'; train_type = 'mass_total'
@@ -62,11 +70,19 @@ train_cols = ['R','Vrad', 'Vtan', l1, l2, l3, dens]; test_col = 'Mtot'; train_ty
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
 #regressor = LinearRegression(); reg_name = 'linear_reg' + '_' + train_type
-#regressor = RandomForestRegressor(n_estimators = n_estimators); reg_name = 'randomforest_reg' + '_' + train_type
-regressor = GradientBoostingRegressor(n_estimators = n_estimators, max_depth = max_depth, min_samples_split = min_samples_split); reg_name = 'gradientboost_reg' + '_' + train_type
+regressor = RandomForestRegressor(n_estimators = n_estimators); reg_name = 'randomforest_reg' + '_' + train_type
+#regressor = GradientBoostingRegressor(n_estimators = n_estimators, max_depth = max_depth, min_samples_split = min_samples_split); reg_name = 'gradientboost_reg' + '_' + train_type
 
 X = data[train_cols]
 y = data[test_col]
+
+#data['AngMom'] = data['AngMom'].apply(lambda x: np.log10(x))
+#data['AngMom'].hist(bins=100)
+#plt.show()
+
+pca_cols = ['R','Vrad', 'Vtan', 'AngMom', 'Energy', l1, l2, l3, dens]
+
+data_pca = t.data_pca(data=data, columns=pca_cols)
 
 print('Total size: ', X.count())
 
@@ -87,22 +103,36 @@ X_test = scaler.transform(X_test)
 regressor.fit(X_train, y_train)
 predictions = regressor.predict(X_test)
 
-print(y_test.shape)
+#print(y_test.shape)
 
 mae = metrics.mean_absolute_error(y_test, predictions)
 msq = metrics.mean_squared_error(y_test, predictions)
 mape = t.MAPE(y_test, predictions)
 
-
 if train_type == 'mass_total' or train_type == 'mass_total_lambda' + str(grid): 
     print('MAE: ', mae/1.0e+12, ' MSQ: ', np.sqrt(msq)/1.0e+12, ' MAPE: ', np.mean(mape) )
     cols = ['M_tot_true', 'M_tot_pred']
     data = pd.DataFrame() 
+    slope = np.polyfit(np.log10(y_test), np.log10(predictions), 1)
+    
+    # TODO check why one prediction is negative???
+    #predictions = abs(predictions)
     data[cols[0]] = np.log10(y_test)
     data[cols[1]] = np.log10(predictions)
-    sns.lmplot(x=cols[0], y=cols[1], data=data)
+    x = [12.1, 12.5, 12.85]
+    
+    feat_title = '_'
 
-    slope = np.polyfit(np.log10(y_test), np.log10(predictions), 1)
+    for feat in train_cols:
+        feat_title = feat_title + '_' + feat
+
+    reg_name = reg_name + feat_title
+    title = feat_title + ' slope= ' + '%5.3f' % slope[0]
+
+    sns.lmplot(x=cols[0], y=cols[1], data=data)
+    sns.lineplot(x, x)
+    plt.title(title)
+
     print('Slope: ', slope)
 
 elif train_type == 'mass_m31':
@@ -142,7 +172,6 @@ elif train_type == 'vel_rad':
     print('Slope: ', slope)
     ax.set(xlabel='V_rad (true)', ylabel='V_rad (pred)')
 
-
 if reg_name == 'randomforest_reg' + '_' + train_type:
     importances = regressor.feature_importances_
     print(X.columns)
@@ -152,31 +181,3 @@ if reg_name == 'randomforest_reg' + '_' + train_type:
 plt.tight_layout()
 print('savefig to output/' + reg_name + '.png')
 plt.savefig('output/' + reg_name + '.png')
-
-
-'''
-print(classification_report(y_test, pred))
-print(confusion_matrix(y_test, pred))
-
-print('RANDOM FOREST')
-
-rforest = RandomForestClassifier(n_estimators = 200)
-rforest.fit(X_train, y_train)
-pred2 = rforest.predict(X_test)
-
-print(classification_report(y_test, pred2))
-print(confusion_matrix(y_test, pred2))
-
-scaler.fit(train.drop('TARGET CLASS', axis = 1))
-scaled_feat = scaler.transform(train.drop('TARGET CLASS', axis = 1))
-data_scaled = pd.DataFrame(scaled_feat, columns = train.columns[:-1])
-
-print(scaled_feat)
-
-print(data_scaled.head())
-
-pred = knn.predict(X_test)
-pred2 = logmod.predict(X_test)
-print(classification_report(y_test, pred))
-plt.show()
-'''

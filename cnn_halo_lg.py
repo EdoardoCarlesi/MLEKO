@@ -7,6 +7,7 @@
 '''
 
 from cnn_model import CNN_Model
+import nn_tools as nnt
 import tools as t
 import pandas as pd
 import numpy as np
