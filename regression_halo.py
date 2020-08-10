@@ -25,7 +25,9 @@ import tools as t
 
 sns.set_style('whitegrid')
 
-data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
+#data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
+#data = rf.read_lg_fullbox()
+data = rf.read_lg_rs_fullbox()
 
 all_columns = ['M_M31', 'M_MW', 'R', 'Vrad', 'Vtan', 'Nsub_M31', 'Nsub_MW', 'Npart_M31', 'Npart_MW', 'Vmax_MW', 'Vmax_M31', 'lambda_MW',
        'lambda_M31', 'cNFW_MW', 'c_NFW_M31', 'Xc_LG', 'Yc_LG', 'Zc_LG', 'AngMom', 'Energy', 'x_32', 'y_32', 'z_32', 'l1_32', 'l2_32', 'l3_32', 'dens_32', 
@@ -42,26 +44,31 @@ l_tot = 'l_tot_' + str(grid)
 # Add some useful combinations to the dataframe
 data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
-data[l_tot] = data[l1] + data[l2] + data[l3]
+#data[l_tot] = data[l1] + data[l2] + data[l3]
 
-#sns.lmplot(x=dens, y=l_tot, data=data)
+data['Mlog'] = np.log10(data['Mtot'])
+#data['denslog'] = np.log10(data['dens_128'])
+
+#sns.scatterplot(x='Mlog', y='denslog', data = data)
 #plt.show()
 
+#sns.lmplot(x=dens, y=l_tot, data=data)
+
 # Set some parameters for the random forest and gradient boosted trees
-n_estimators = 1000
-max_depth = 4
-min_samples_split = 12
+n_estimators = 5000
+max_depth = 8
+min_samples_split = 24
 
 # Regression type, feature selection and target variable
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio_lambda'
 #train_cols = ['R','Vrad', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R','Vrad', 'Vtan', l1, l2, l3, dens]; test_col = 'Mtot'; train_type = 'mass_total_lambda' + str(grid)
 #train_cols = ['R','Vrad', 'AngMom', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
-train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
+#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan', dens]; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', dens]; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan', dens]; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
+train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['Mtot','R', 'Vtan']; test_col = 'Vrad'; train_type = 'vel_rad'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_m31'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
@@ -78,8 +85,8 @@ regressor = RandomForestRegressor(n_estimators = n_estimators); reg_name = 'rand
 # Do a PCA to check the data
 pca_percent = 0.9
 #pca_percent = None
-pca_cols = all_columns
-#pca_cols = ['R','Vrad', 'Vtan', 'AngMom', 'Energy', l1, l2, l3, dens]
+#pca_cols = all_columns
+pca_cols = ['R','Vrad', 'Vtan', 'AngMom', 'Energy'] #, l1, l2, l3, dens]
 data_pca = t.data_pca(data=data, columns=pca_cols, pca_percent=pca_percent)
 
 print('PCA at ', pca_percent, ' n_components: ', len(data_pca.columns), ' n_original: ', len(all_columns))
@@ -90,10 +97,11 @@ print(data_pca.head())
 # Select the features for the training and test set
 X = data[train_cols]
 y = data[test_col]
+test_size = 0.2
 
 print('Total size: ', X.count())
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state = 40)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = 40)
 
 print('Train size: ', len(X_train))
 print('Test size: ', len(X_test))
@@ -122,8 +130,6 @@ if train_type == 'mass_total' or train_type == 'mass_total_lambda' + str(grid):
     data = pd.DataFrame() 
     slope = np.polyfit(np.log10(y_test), np.log10(predictions), 1)
     
-    # TODO check why one prediction is negative???
-    #predictions = abs(predictions)
     data[cols[0]] = np.log10(y_test)
     data[cols[1]] = np.log10(predictions)
     x = [12.1, 12.5, 12.85]
