@@ -37,8 +37,8 @@ ann_model_base_name = 'output/ann_model_'
 
 sns.set_style('whitegrid')
 
-#data = rf.read_lg_fullbox(); file_type = 'ahf_simu_'
-data = rf.read_lg_rs_fullbox(files=[0,35]); file_type = 'rs_simu_'
+#data = rf.read_lg_fullbox()
+data = rf.read_lg_rs_fullbox(files=[0,2])
 #data = rf.read_lg_fullbox_vweb(grids=[32, 64, 128])
 
 '''
@@ -66,14 +66,13 @@ data['Vtot'] = np.sqrt(data['Vrad'] **2 + data['Vtan'] **2)
 #print(data[['Xc_LG', 'x_64']])
 
 #train_cols = ['R','Vrad', 'Mtot']; pred_col = 'Mratio'; train_type = 'mass_ratio'
-#train_cols = ['R','Vrad', 'Vtan']; pred_col = 'Mtot'; train_type = 'mass_total'
-train_cols = ['R','Vrad', 'Vtan']; pred_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['R', 'Vrad']; pred_col = 'Mtot'; train_type = 'mass_total'
+#train_cols = ['R','Vrad']; pred_col = 'Mtot'; train_type = 'mass_total'
+#train_cols = ['R', 'Vrad', 'Vtan']; pred_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['VR', 'R', 'Vrad', 'Vtan', 'Vtot']; pred_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R', 'Vrad', 'Vtan']; pred_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['Mratio', 'M_M31']; pred_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['M_MW', 'M_M31']; pred_col = 'Mtot'; train_type = 'mass_total'
-train_cols = ['R', 'Vrad', 'Vtan']; pred_col = 'Mtot'; train_type = 'mass_total'
+train_cols = ['M_MW', 'M_M31']; pred_col = 'Mtot'; train_type = 'mass_total'
+#train_cols = ['R', 'Vrad', 'Vtan']; pred_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R', 'Vrad']; pred_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R', 'Vrad', l1, l2, l3, dens]; pred_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R', 'Vrad']; pred_col = 'Mtot'; train_type = 'mass_total'
@@ -84,28 +83,19 @@ train_cols = ['R', 'Vrad', 'Vtan']; pred_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['R','Mtot', 'Vtan']; pred_col = 'Vrad'; train_type = 'vrad'
 
 ann_name = ann_model_base_name + train_type + '.keras'
-v_max = -50.0
-r_max = 1000.0
-data = data[data['Vrad'] < v_max]
-data = data[data['R'] < r_max]
 
-'''
 # Properly rescale all the units
-vrad_max = -150.0
-vrad_max = data['Vrad'].min()
-data = data[data['Vrad'] > vrad_max]
-data['Vrad'] = np.log(-(data['Vrad'] + vrad_max) / 100.0)
-'''
+#vrad_max = -150.0
+#vrad_max = data['Vrad'].min()
+#data = data[data['Vrad'] > vrad_max]
+#data['Vrad'] = (data['Vrad'] - vrad_max) / 100.0
+#data['Vrad'] = np.log(-(data['Vrad'] + vrad_max) / 100.0)
 
 mass_norm = 1.0e+12
 
-data['Vrad'] = np.log(-data['Vrad']/ 200.0)
-data['Vtan'] = np.log((data['Vtan']) / 200.0)
 data['Mtot'] = np.log10(data['Mtot']/ mass_norm)
 data['M_MW'] = np.log10(data['M_MW']/ mass_norm)
 data['M_M31'] = np.log10(data['M_M31']/ mass_norm)
-
-data['R'] = data['R'] / 1000.0
 
 # Normalize stuff manually and see what happens
 #for col in train_cols:
@@ -113,6 +103,8 @@ data['R'] = data['R'] / 1000.0
     #data[col] = data[col]/data[col].max()
 #    data[col].plot.hist(bins=50)
     #plt.show()
+'''
+'''
 
 #data['R'].plot.hist(bins=50)
 #plt.show()
@@ -139,14 +131,14 @@ elif train_type == 'mass_ratio':
 print('Total train size: ', len(X))
 
 # Splitting the dataset into the Training set and Test set
-test_size = 0.2
+test_size = 0.7
 rand_state = 123456789
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = rand_state)
 
 # Feature Scaling
 #sc = StandardScaler()
-#sc = MaxAbsScaler()
-sc = Normalizer()
+sc = MaxAbsScaler()
+#sc = Normalizer()
 #sc = MinMaxScaler()
 sc.fit(X_train)
 
@@ -166,10 +158,10 @@ regressor = Sequential()
 
 #Select the number of units
 n_in1 = 10
-n_in2 = 5
+n_in2 = 4
 n_out = 1
-n_epochs = 30
-batch_size = 1500
+n_epochs = 10
+batch_size = 10
 n_input = len(train_cols)
 
 #activation1 = 'relu'
@@ -181,13 +173,12 @@ activation1 = 'selu'
 activation1 = 'tanh'
 '''
 
-regressor.add(Dense(units = n_input))
-#, kernel_initializer='uniform', activation = activation1))
-#regressor.add(Dense(units = n_input, kernel_initializer='uniform', activation = activation1))
+regressor.add(Dense(units = n_input, kernel_initializer='uniform', activation = activation1))
+regressor.add(Dense(units = n_in1, kernel_initializer = 'he_uniform', activation = activation1))
 regressor.add(Dense(units = n_in1, kernel_initializer = 'he_uniform', activation = activation1))
 regressor.add(Dense(units = n_in2, kernel_initializer = 'uniform', activation = activation1))
-#regressor.add(Dense(units = n_out, kernel_initializer = 'uniform', activation = 'linear'))
-regressor.add(Dense(n_out))
+regressor.add(Dense(units = n_out, kernel_initializer = 'uniform', activation = 'linear'))
+#regressor.add(Dense(n_out))
 
 '''
 early_stop = EarlyStopping(monitor='loss', mode="min", verbose = 1, patience = 10) 
@@ -207,14 +198,14 @@ regressor.add(Dense(units = n_in, kernel_initializer = 'he_uniform', activation 
 
 #opt='adam'
 #opt = tf.keras.optimizers.SGD(lr=0.008)
-opt = tf.keras.optimizers.SGD(lr=0.1)
+#opt = tf.keras.optimizers.SGD(lr=0.007)
 #opt = tf.keras.optimizers.Adam(lr=0.015)
 
 #regressor.compile(optimizer=opt, loss='mse', metrics=['mae'])
 #regressor.compile(optimizer=opt, loss='msle', metrics=['mae'])
-regressor.compile(optimizer=opt, loss='mae', metrics=['mae'])
+#regressor.compile(optimizer=opt, loss='mae', metrics=['mae'])
 
-#regressor.compile(optimizer='adam', loss='mse', metrics=['mae'])
+regressor.compile(optimizer='adam', loss='mse', metrics=['mae'])
 #regressor.compile(optimizer='rmsprop', loss='mse', metrics=['mae'], callbacks=[early_stop])
 #regressor.compile(optimizer='rmsprop', loss='msle', metrics=['mae', 'mse'])
 
@@ -247,17 +238,11 @@ if trainANN == True:
     data = pd.DataFrame() 
     data[cols[0]] = y_test
     data[cols[1]] = predictions
-    #sns.lmplot(x=cols[0], y=cols[1], data=data)
-    #sns.kdeplot(data[cols[0]], data[cols[1]], n_levels = 5)
+    sns.lmplot(x=cols[0], y=cols[1], data=data)
     slope = np.polyfit(y_test, predictions, 1)
     print('Slope: ', slope)
-
-    add_name = '_' + activation1 + '_' + file_type
-    for col in train_cols:
-        add_name = add_name + '_' + col
-
-    file_name = 'output/ann_' + train_type + add_name + '.png'
-    #plt.savefig(file_name)
+    file_name = 'output/ann_' + train_type + '.png'
+    plt.savefig(file_name)
     #plt.show()     
     
 

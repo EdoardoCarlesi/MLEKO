@@ -80,7 +80,7 @@ def find_images_in_folder(path=None, extension='png'):
 '''
 def MAPE(y_true, y_pred):
     d_y = np.abs(y_true - y_pred)
-    d_y = d_y / y_true
+    d_y = np.abs((d_y) / (y_true))
 
     return d_y
 

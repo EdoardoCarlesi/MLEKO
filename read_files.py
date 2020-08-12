@@ -12,16 +12,30 @@ import numpy as np
 '''
     Read all the fullbox LG data for each box, without VWeb information
 '''
-def read_lg_rs_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_rs', lgf_data=False, lgf_hires_data=False):
+def read_lg_rs_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_rs', lgf_data=False, lgf_hires_data=False, files=[0, 20]):
 
     all_data = []
-    for i in range(0, 20):
+    for i in range(files[0], files[1]):
         this_number = '%04d' % i
         this_data_file = file_base + '_' + this_number + '.csv'
-        this_data = pd.read_csv(this_data_file)
-        all_data.append(this_data)
+
+        try:
+            this_data = pd.read_csv(this_data_file)
+            all_data.append(this_data)
+        except:
+            'Skip this data'
 
     data = pd.concat(all_data) 
+    return data
+
+
+'''
+    Read all the LGF / Hestia simulation LG data
+'''
+def read_lg_lgf():
+    data_file = '/home/edoardo/CLUES/PyRCODIO/output/lg_pairs_512.csv'
+    data = pd.read_csv(data_file)
+
     return data
 
 
