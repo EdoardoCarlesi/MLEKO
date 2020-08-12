@@ -27,7 +27,7 @@ sns.set_style('whitegrid')
 
 #data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
 #data = rf.read_lg_fullbox(); name_add = '_ahf'
-data = rf.read_lg_rs_fullbox(files=[0, 4]); name_add = '_rs'
+data = rf.read_lg_rs_fullbox(files=[0, 10]); name_add = '_rs'
 #data = rf.read_lg_lgf(); name_add = '_lgf'
 
 all_columns = ['M_M31', 'M_MW', 'R', 'Vrad', 'Vtan', 'Nsub_M31', 'Nsub_MW', 'Npart_M31', 'Npart_MW', 'Vmax_MW', 'Vmax_M31', 'lambda_MW',
@@ -48,11 +48,11 @@ data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
 data['Mlog'] = np.log10(data['Mtot']/mass_norm)
 
-mratio_max = 3.0
-vrad_max = -50.0
-vtan_max = 1000.0
+mratio_max = 4.0
+vrad_max = -10.0
+vtan_max = 500.0
 r_max = 1200.0
-r_min = 400.0
+r_min = 450.0
 mass_min = 6.0e+11
 
 data = data[data['Vrad'] < vrad_max]
@@ -68,7 +68,7 @@ print('Ndata after Mratio cut: ', len(data))
 data = data[data['M_MW'] > mass_min]
 print('Ndata after M_MW cut: ', len(data))
 
-data['Vrad'] = np.log(-data['Vrad'] / 100.0)
+data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
 #data['Vtan'] = np.log(data['Vtan'] / 100.0)
 #data['denslog'] = np.log10(data['dens_128'])
 #data[l_tot] = data[l1] + data[l2] + data[l3]
@@ -85,15 +85,15 @@ boot = False
 n_jobs = 2
 test_size = 0.2
 
-regressor_type = 'random_forest'
+#regressor_type = 'random_forest'
 #regressor_type = 'gradient_boost'
-#regressor_type = 'linear'
+regressor_type = 'linear'
 
 # Regression type, feature selection and target variable
 #train_cols = ['R','Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R','Vrad', 'M_MW']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
-train_cols = ['Vrad']; test_col = 'Mlog'; train_type = 'mass_total'
+train_cols = ['Mlog']; test_col = 'Vrad'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mtot'; train_type = 'mass_total'
@@ -118,6 +118,12 @@ train_cols = ['Vrad']; test_col = 'Mlog'; train_type = 'mass_total'
 base_slope = np.polyfit(data[train_cols[0]], data[test_col], 1)
 print('BaseSlope: ', base_slope)
 
+new_col = 'M_LinFit'
+data[new_col] = data[train_cols[0]].apply(lambda x: base_slope[0] * x + base_slope[1])
+
+base_result_slope = np.polyfit(data[new_col], data[test_col], 1)
+
+print('ResultSlope: ', base_result_slope)
 
 # Select the regressor type
 if regressor_type == 'random_forest':

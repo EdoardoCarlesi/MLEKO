@@ -94,7 +94,6 @@ if filterData == True:
 
 print('Data sample numbers. LGF: ', len(data_lgf), ' BigMD: ', len(data_rs), ' SmallBox: ', len(data_ahf))
 
-
 # 1D Distributions
 #col = 'R'
 col = 'Mlog'
