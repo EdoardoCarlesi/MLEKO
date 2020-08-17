@@ -1,6 +1,7 @@
 *.tmp
 *.out
 activate
+output/*
 data
 data/
 models/*
