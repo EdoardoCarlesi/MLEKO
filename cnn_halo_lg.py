@@ -21,8 +21,8 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.preprocessing.image import image
 
 # Choose wether to load or save the neural network model
-train_model = False
-#train_model = True
+#train_model = False
+train_model = True
 
 class_mode = 'binary'
 #class_mode = 'categorical'
