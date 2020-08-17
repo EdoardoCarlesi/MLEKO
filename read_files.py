@@ -12,7 +12,7 @@ import numpy as np
 '''
     Read all the fullbox LG data for each box, without VWeb information
 '''
-def read_lg_rs_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_rs', lgf_data=False, lgf_hires_data=False, files=[0, 20]):
+def read_lg_rs_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_rs', lgf_data=False, lgf_hires_data=False, files=[0, 20], TA=False):
 
     all_data = []
     for i in range(files[0], files[1]):
@@ -32,8 +32,12 @@ def read_lg_rs_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox
 '''
     Read all the LGF / Hestia simulation LG data
 '''
-def read_lg_lgf():
-    data_file = '/home/edoardo/CLUES/PyRCODIO/output/lg_pairs_512.csv'
+def read_lg_lgf(TA=False):
+
+    if TA == True:
+        data_file = '/home/edoardo/CLUES/PyRCODIO/output/lg_pairs_512_TA.csv'
+    else:
+        data_file = '/home/edoardo/CLUES/PyRCODIO/output/lg_pairs_512.csv'
     data = pd.read_csv(data_file)
 
     return data
@@ -42,34 +46,24 @@ def read_lg_lgf():
 '''
     Read all the fullbox LG data for each box, without VWeb information
 '''
-def read_lg_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox', lgf_data=False, lgf_hires_data=False):
+def read_lg_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox', TA=False):
 
-    data_00 = file_base + '_00.csv'
-    train_00 = pd.read_csv(data_00)
-    data_01 = file_base + '_01.csv'
-    train_01 = pd.read_csv(data_01)
-    data_02 = file_base + '_02.csv'
-    train_02 = pd.read_csv(data_02)
-    data_03 = file_base + '_03.csv'
-    train_03 = pd.read_csv(data_03)
-    data_04 = file_base + '_04.csv'
-    train_04 = pd.read_csv(data_04)
+    if TA == True:
+        data_ta = file_base + '_TA.csv'
+        data = pd.read_csv(data_ta)
 
-    if lgf_data == True:
-        file_lgf = '/home/edoardo/CLUES/PyRCODIO/output/lg_pairs_512.csv'
-        data_lgf = pd.read_csv(file_lgf)
-
-    if lgf_hires_data == True:
-        file_hires_lgf = '/home/edoardo/CLUES/PyRCODIO/output/lg_pairs_2048.csv'
-        data_hires_lgf = pd.read_csv(file_hires_lgf)
-
-    if all([lgf_data, lgf_hires_data]):
-        data = pd.concat([train_00, train_01, train_02, train_03, train_04, data_lgf, data_hires_lgf])
-    elif lgf_data == True and lgf_hires_data == False:
-        data = pd.concat([train_00, train_01, train_02, train_03, train_04, data_lgf])
-    elif lgf_data == False and lgf_hires_data == True:
-        data = pd.concat([train_00, train_01, train_02, train_03, train_04, data_hires_lgf])
     else:
+        data_00 = file_base + '_00.csv'
+        train_00 = pd.read_csv(data_00)
+        data_01 = file_base + '_01.csv'
+        train_01 = pd.read_csv(data_01)
+        data_02 = file_base + '_02.csv'
+        train_02 = pd.read_csv(data_02)
+        data_03 = file_base + '_03.csv'
+        train_03 = pd.read_csv(data_03)
+        data_04 = file_base + '_04.csv'
+        train_04 = pd.read_csv(data_04)
+
         data = pd.concat([train_00, train_01, train_02, train_03, train_04])
     
     return data
@@ -100,10 +94,10 @@ def read_lg_vweb(grid_size=64, file_base='/home/edoardo/CLUES/PyRCODIO/output/lg
 '''
     Read both vweb and lg data, concatenate the sets   
 '''
-def read_lg_fullbox_vweb(grids = [64]):
+def read_lg_fullbox_vweb(grids = [64], TA=False):
 
     # First read the full data for each LG
-    data = read_lg_fullbox()
+    data = read_lg_fullbox(TA=TA)
 
     # Read in the cosmic web at different scales
     for grid in grids:

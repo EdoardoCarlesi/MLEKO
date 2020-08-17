@@ -23,12 +23,18 @@ import read_files as rf
 import tools as t
 
 
+def ta_mass(r, v):
+    t0 = 14.75
+    tam = ta.mass_estimate(r=r, v=v, t=t0)
+    return tam
+
+
 sns.set_style('whitegrid')
 
 #data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
-#data = rf.read_lg_fullbox(); name_add = '_ahf'
-data = rf.read_lg_rs_fullbox(files=[0, 10]); name_add = '_rs'
-#data = rf.read_lg_lgf(); name_add = '_lgf'
+data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
+#data = rf.read_lg_rs_fullbox(files=[0, 10]); name_add = '_rs'
+#data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
 
 all_columns = ['M_M31', 'M_MW', 'R', 'Vrad', 'Vtan', 'Nsub_M31', 'Nsub_MW', 'Npart_M31', 'Npart_MW', 'Vmax_MW', 'Vmax_M31', 'lambda_MW',
        'lambda_M31', 'cNFW_MW', 'c_NFW_M31', 'Xc_LG', 'Yc_LG', 'Zc_LG', 'AngMom', 'Energy', 'x_32', 'y_32', 'z_32', 'l1_32', 'l2_32', 'l3_32', 'dens_32', 
@@ -48,12 +54,12 @@ data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
 data['Mlog'] = np.log10(data['Mtot']/mass_norm)
 
-mratio_max = 4.0
-vrad_max = -10.0
-vtan_max = 500.0
+mratio_max = 5.0
+vrad_max = -1.0
+vtan_max = 1000.0
 r_max = 1200.0
-r_min = 450.0
-mass_min = 6.0e+11
+r_min = 400.0
+mass_min = 5.0e+11
 
 data = data[data['Vrad'] < vrad_max]
 print('Ndata after Vrad cut: ', len(data))
@@ -68,7 +74,12 @@ print('Ndata after Mratio cut: ', len(data))
 data = data[data['M_MW'] > mass_min]
 print('Ndata after M_MW cut: ', len(data))
 
+all_r = data['R'].values
+all_v = data['Vrad'].values
+all_tam = np.zeros((len(all_r)))
+
 data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
+data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
 #data['Vtan'] = np.log(data['Vtan'] / 100.0)
 #data['denslog'] = np.log10(data['dens_128'])
 #data[l_tot] = data[l1] + data[l2] + data[l3]
@@ -79,21 +90,21 @@ data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
 # Set some parameters for the random forest and gradient boosted trees
 n_estimators = 300
 max_depth = 4
-max_samples = 400
+max_samples = 30
 min_samples_split = 10
-boot = False
+boot = True
 n_jobs = 2
 test_size = 0.2
 
-#regressor_type = 'random_forest'
+regressor_type = 'random_forest'
 #regressor_type = 'gradient_boost'
-regressor_type = 'linear'
+#regressor_type = 'linear'
 
 # Regression type, feature selection and target variable
 #train_cols = ['R','Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R','Vrad', 'M_MW']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
-train_cols = ['Mlog']; test_col = 'Vrad'; train_type = 'mass_total'
+train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mtot'; train_type = 'mass_total'
@@ -121,8 +132,12 @@ print('BaseSlope: ', base_slope)
 new_col = 'M_LinFit'
 data[new_col] = data[train_cols[0]].apply(lambda x: base_slope[0] * x + base_slope[1])
 
-base_result_slope = np.polyfit(data[new_col], data[test_col], 1)
+#print(data[new_col])
+#print(data[test_col])
+#sns.scatterplot(data[new_col], data[test_col])
+#plt.show()
 
+base_result_slope = np.polyfit(data[test_col], data[new_col], 1)
 print('ResultSlope: ', base_result_slope)
 
 # Select the regressor type
@@ -163,10 +178,12 @@ print(data_pca.head())
 # Select the features for the training and test set
 X = data[train_cols]
 y = data[test_col]
+z = data['Mlog_TA']
 
 print('Total size: ', X.count())
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = 42)
+X_train, X_test, z_train, z_test = train_test_split(X, z, test_size = test_size, random_state = 42)
 
 print('Train size: ', len(X_train))
 print('Test size: ', len(X_test))
@@ -188,9 +205,14 @@ msq = metrics.mean_squared_error(y_test, predictions)
 mape = t.MAPE(y_test, predictions)
 
 slope = np.polyfit(y_test, predictions, 1)
+slope_ta = np.polyfit(z_test, predictions, 1)
+slope_ta_pred = np.polyfit(z_test, y_test, 1)
+
+print('Slope TA: ', slope_ta)
+print('Slope TA pred: ', slope_ta_pred)
 
 if train_type == 'mass_total':
-    cols = ['M_tot_true', 'M_tot_pred']
+    cols = ['M_tot_true', 'M_tot_pred', 'M_tot_TA']
 
 elif train_type == 'mass_ratio':
     cols = ['M_ratio_true', 'M_ratio_pred']
