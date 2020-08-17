@@ -23,18 +23,12 @@ import read_files as rf
 import tools as t
 
 
-def ta_mass(r, v):
-    t0 = 14.75
-    tam = ta.mass_estimate(r=r, v=v, t=t0)
-    return tam
-
-
 sns.set_style('whitegrid')
 
 #data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
-data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
-#data = rf.read_lg_rs_fullbox(files=[0, 10]); name_add = '_rs'
-#data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
+#data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
+#data = rf.read_lg_rs_fullbox(TA=True); name_add = '_rs'
+data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
 
 all_columns = ['M_M31', 'M_MW', 'R', 'Vrad', 'Vtan', 'Nsub_M31', 'Nsub_MW', 'Npart_M31', 'Npart_MW', 'Vmax_MW', 'Vmax_M31', 'lambda_MW',
        'lambda_M31', 'cNFW_MW', 'c_NFW_M31', 'Xc_LG', 'Yc_LG', 'Zc_LG', 'AngMom', 'Energy', 'x_32', 'y_32', 'z_32', 'l1_32', 'l2_32', 'l3_32', 'dens_32', 
@@ -54,12 +48,31 @@ data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
 data['Mlog'] = np.log10(data['Mtot']/mass_norm)
 
-mratio_max = 5.0
+'''
+    Best parameter set AHF
+
+boot = False, n_estimators = 100
+
+mratio_max = 4.0
 vrad_max = -1.0
 vtan_max = 1000.0
 r_max = 1200.0
 r_min = 400.0
 mass_min = 5.0e+11
+'''
+
+'''
+    Best parameter set LGF
+    boot = False, n_estimators = 100
+'''
+
+mratio_max = 6.0
+vrad_max = -1.0
+vtan_max = 1000.0
+r_max = 1500.0
+r_min = 300.0
+mass_min = 5.0e+11
+
 
 data = data[data['Vrad'] < vrad_max]
 print('Ndata after Vrad cut: ', len(data))
@@ -80,7 +93,7 @@ all_tam = np.zeros((len(all_r)))
 
 data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
 data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
-#data['Vtan'] = np.log(data['Vtan'] / 100.0)
+data['Vtan'] = np.log(data['Vtan'] / 100.0)
 #data['denslog'] = np.log10(data['dens_128'])
 #data[l_tot] = data[l1] + data[l2] + data[l3]
 #sns.scatterplot(x='Mlog', y='Vrad', data = data)
@@ -88,11 +101,11 @@ data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
 #sns.lmplot(x=dens, y=l_tot, data=data)
 
 # Set some parameters for the random forest and gradient boosted trees
-n_estimators = 300
-max_depth = 4
-max_samples = 30
-min_samples_split = 10
-boot = True
+n_estimators = 100
+max_depth = 12
+max_samples = 100
+min_samples_split = 20
+boot = False
 n_jobs = 2
 test_size = 0.2
 
@@ -104,7 +117,12 @@ regressor_type = 'random_forest'
 #train_cols = ['R','Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R','Vrad', 'M_MW']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
-train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
+train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R', 'Vtan', 'Energy', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
+
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mtot'; train_type = 'mass_total'
@@ -210,6 +228,8 @@ slope_ta_pred = np.polyfit(z_test, y_test, 1)
 
 print('Slope TA: ', slope_ta)
 print('Slope TA pred: ', slope_ta_pred)
+    
+col_ratio = 'pred_true_ratio'
 
 if train_type == 'mass_total':
     cols = ['M_tot_true', 'M_tot_pred', 'M_tot_TA']
@@ -223,9 +243,10 @@ elif train_type == 'vel_rad':
 data = pd.DataFrame() 
 data[cols[0]] = y_test
 data[cols[1]] = predictions
+data[col_ratio] = np.log10(predictions / y_test)
 
 yy = []
-x = [data[cols[0]].min(), data[cols[1]].max()]
+x = [data[cols[0]].min(), data[cols[0]].max()]
 
 for xx in x:
     yy.append(slope[0] * xx + slope[1])
@@ -264,3 +285,19 @@ plt.tight_layout()
 file_output ='output/' + reg_name + name_add + '.png' 
 print('savefig to: ', file_output)
 plt.savefig(file_output)
+
+plt.clf()
+plt.cla()
+file_output_ratio ='output/ratio_' + reg_name + name_add + '.png' 
+sns.distplot(data[col_ratio], bins=50)
+title = cols[0] + '_' + cols[1] + ' Median= ' + '%5.3f' % np.median(data[col_ratio])
+
+plt.title(title)
+plt.savefig(file_output_ratio)
+
+
+
+
+
+
+
