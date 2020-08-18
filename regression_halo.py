@@ -26,6 +26,7 @@ import tools as t
 sns.set_style('whitegrid')
 
 #data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
+
 #data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
 #data = rf.read_lg_rs_fullbox(TA=True); name_add = '_rs'
 data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
@@ -48,30 +49,38 @@ data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
 data['Mlog'] = np.log10(data['Mtot']/mass_norm)
 
-'''
-    Best parameter set AHF
+# Best parameter set AHF
+if name_add == '_ahf':
+    boot = False; n_estimators = 100
 
-boot = False, n_estimators = 100
+    mratio_max = 4.0
+    vrad_max = -1.0
+    vtan_max = 1000.0
+    r_max = 1200.0
+    r_min = 400.0
+    mass_min = 5.0e+11
 
-mratio_max = 4.0
-vrad_max = -1.0
-vtan_max = 1000.0
-r_max = 1200.0
-r_min = 400.0
-mass_min = 5.0e+11
-'''
+# Best parameter set LGF
+if name_add == '_lgf':
+    boot = False; n_estimators = 100
 
-'''
-    Best parameter set LGF
-    boot = False, n_estimators = 100
-'''
+    mratio_max = 6.0
+    vrad_max = -1.0
+    vtan_max = 1000.0
+    r_max = 1500.0
+    r_min = 300.0
+    mass_min = 5.0e+11
 
-mratio_max = 6.0
-vrad_max = -1.0
-vtan_max = 1000.0
-r_max = 1500.0
-r_min = 300.0
-mass_min = 5.0e+11
+# Best parameter set RS
+if name_add == '_rs':
+    boot = False; n_estimators = 100
+
+    mratio_max = 4.0
+    vrad_max = -1.0
+    vtan_max = 100.0
+    r_max = 1200.0
+    r_min = 400.0
+    mass_min = 6.0e+11
 
 
 data = data[data['Vrad'] < vrad_max]
@@ -94,6 +103,12 @@ all_tam = np.zeros((len(all_r)))
 data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
 data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
 data['Vtan'] = np.log(data['Vtan'] / 100.0)
+data['Vtot'] = np.sqrt(data['Vtan'].apply(lambda x: x*x) + data['Vrad'].apply(lambda x: x*x))
+data['Ekin'] = 0.5 * data['Vtot'].apply(lambda x: x*x)
+
+print(data['Ekin'])
+print(data['Vtot'])
+
 #data['denslog'] = np.log10(data['dens_128'])
 #data[l_tot] = data[l1] + data[l2] + data[l3]
 #sns.scatterplot(x='Mlog', y='Vrad', data = data)
@@ -101,11 +116,10 @@ data['Vtan'] = np.log(data['Vtan'] / 100.0)
 #sns.lmplot(x=dens, y=l_tot, data=data)
 
 # Set some parameters for the random forest and gradient boosted trees
-n_estimators = 100
+#n_estimators = 100; boot = False
 max_depth = 12
 max_samples = 100
 min_samples_split = 20
-boot = False
 n_jobs = 2
 test_size = 0.2
 
@@ -115,14 +129,16 @@ regressor_type = 'random_forest'
 
 # Regression type, feature selection and target variable
 #train_cols = ['R','Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
-#train_cols = ['R','Vrad', 'M_MW']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R', 'Vrad', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R','Vrad', 'Vtan', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R','Vrad', 'Vtan', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
 #train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
-train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
-
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mtot'; train_type = 'mass_total'
@@ -140,7 +156,12 @@ train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['M_M31','M_MW', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
 
-#train_cols = ['Mtot','R', 'Vtan']; test_col = 'Vrad'; train_type = 'vel_rad'
+train_cols = ['R', 'Vrad']; test_col = 'Vtan'; train_type = 'vel_tan'
+train_cols = ['Vrad', 'Vtot']; test_col = 'Vtan'; train_type = 'vel_tan'
+#train_cols = ['Mtot','R', 'Vrad']; test_col = 'Vtan'; train_type = 'vel_tan'
+#train_cols = ['Mtot','R', 'Vrad', 'Mratio']; test_col = 'Vtan'; train_type = 'vel_tan'
+#train_cols = ['Mtot','R', 'Vrad', 'Energy']; test_col = 'Vtan'; train_type = 'vel_tan'
+
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_m31'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
@@ -240,6 +261,9 @@ elif train_type == 'mass_ratio':
 elif train_type == 'vel_rad':
     cols = ['V_rad_true', 'V_rad_pred']
 
+elif train_type == 'vel_tan':
+    cols = ['V_tan_true', 'V_tan_pred']
+
 data = pd.DataFrame() 
 data[cols[0]] = y_test
 data[cols[1]] = predictions
@@ -290,8 +314,12 @@ plt.clf()
 plt.cla()
 file_output_ratio ='output/ratio_' + reg_name + name_add + '.png' 
 sns.distplot(data[col_ratio], bins=50)
-title = cols[0] + '_' + cols[1] + ' Median= ' + '%5.3f' % np.median(data[col_ratio])
 
+data = data.dropna()
+vel_med = np.median(data[col_ratio])
+title = cols[0] + '_' + cols[1] + ' Median= ' + '%5.3f' % vel_med
+
+print('save ratio to:', file_output_ratio, ' median: ', vel_med)
 plt.title(title)
 plt.savefig(file_output_ratio)
 

@@ -13,21 +13,25 @@ import numpy as np
     Read all the fullbox LG data for each box, without VWeb information
 '''
 def read_lg_rs_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_rs', lgf_data=False, lgf_hires_data=False, files=[0, 20], TA=False):
+    
+    if TA == True:
+        file_ta = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_rs_TA_0020.csv'
+        data = pd.read_csv(file_ta)
+    else:
+        all_data = []
 
-    all_data = []
-    for i in range(files[0], files[1]):
-        this_number = '%04d' % i
-        this_data_file = file_base + '_' + this_number + '.csv'
+        for i in range(files[0], files[1]):
+            this_number = '%04d' % i
+            this_data_file = file_base + '_' + this_number + '.csv'
 
-        try:
-            this_data = pd.read_csv(this_data_file)
-            all_data.append(this_data)
-        except:
-            'Skip this data'
+            try:
+                this_data = pd.read_csv(this_data_file)
+                all_data.append(this_data)
+            except:
+                'Skip this data'
 
-    data = pd.concat(all_data) 
+        data = pd.concat(all_data) 
     return data
-
 
 '''
     Read all the LGF / Hestia simulation LG data
@@ -41,7 +45,6 @@ def read_lg_lgf(TA=False):
     data = pd.read_csv(data_file)
 
     return data
-
 
 '''
     Read all the fullbox LG data for each box, without VWeb information
@@ -111,6 +114,3 @@ def read_lg_fullbox_vweb(grids = [64], TA=False):
             data[new_col] = this_data_web[col]
 
     return data
-
-
-
