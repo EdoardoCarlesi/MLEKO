@@ -23,15 +23,49 @@ import read_files as rf
 import tools as t
 
 
+def rescale_data(data=None, mass_norm=1.0e+12, r_norm=1000.0):
+
+    data['Mtot'] = data['M_M31'] + data['M_MW']
+    data['Mratio'] = data['M_M31'] / data['M_MW']
+    data['Mlog'] = np.log10(data['Mtot']/mass_norm)
+    data['Vtot'] = np.sqrt(data['Vrad'] **2 + data['Vtan'] **2)
+    data['Vlog'] = np.log10(data['Vtot'])
+    data['R_norm'] = data['R'] / r_norm
+    data['Vrad_norm'] = np.log10(-data['Vrad'] / vel_norm)
+    data['Vtan_norm'] = np.log10(data['Vtan'] / vel_norm)
+
+    return data
+
+def filter_data(data=None, vrad_max=-1.0, vrad_min=-200.0, r_max=1500.0, r_min=350.0, mass_min=5.0e+11, vel_norm=100.0, vtan_max=500.0):
+
+    data = data[data['Vrad'] < vrad_max]
+    data = data[data['Vrad'] > vrad_min]
+    data = data[data['R'] < r_max]
+    data = data[data['R'] > r_min]
+    data = data[data['Vtan'] < vtan_max]
+    data = data[data['M_MW'] > mass_min]
+    
+    return data
+
+
+'''
+        MAIN PROGRAM
+'''
+
+#use_simu = 'LGF'
+#use_simu = 'AHF'
+use_simu = 'RS'
+
 sns.set_style('whitegrid')
 
 # Put some threshold on LG properties from different datasets
 ratio_max = 4.0
 mass_min = 6.0e+11
 vrad_max = -10
-vtan_max = 500.0
-r_max = 1200.0
-r_min = 450.0
+vrad_min = -200.0
+vtan_max = 1000.0
+r_max = 1500.0
+r_min = 300.0
 
 # Normalization constants
 mass_norm = 1.0e+12
@@ -39,64 +73,86 @@ vel_norm = 100.0
 r_norm = 1000.0
 
 # Apply some restriction on data properties
-filterData = True
+#filterData = True
+filterData = False
 
-# Read the different datasets
-data_rs = rf.read_lg_rs_fullbox(files = [0, 10])
-data_rs['Mtot'] = data_rs['M_M31'] + data_rs['M_MW']
-data_rs['Mratio'] = data_rs['M_M31'] / data_rs['M_MW']
-data_rs['Mlog'] = np.log10(data_rs['Mtot']/mass_norm)
-data_rs['Vtot'] = np.sqrt(data_rs['Vrad'] **2 + data_rs['Vtan'] **2)
-data_rs['Vlog'] = np.log10(data_rs['Vtot'])
-data_rs['R_norm'] = data_rs['R'] / r_norm
+# Read the different datasetsm rescale and filter
 
-data_ahf = rf.read_lg_fullbox()
-data_ahf['Mtot'] = data_ahf['M_M31'] + data_ahf['M_MW']
-data_ahf['Mratio'] = data_ahf['M_M31'] / data_ahf['M_MW']
-data_ahf['Mlog'] = np.log10(data_ahf['Mtot']/mass_norm)
-data_ahf['Vtot'] = np.sqrt(data_ahf['Vrad'] **2 + data_ahf['Vtan'] **2)
-data_ahf['Vlog'] = np.log10(data_ahf['Vtot'])
-data_ahf['R_norm'] = data_ahf['R'] / r_norm
+if use_simu == 'RS':
+    data = rf.read_lg_rs_fullbox(TA=True)
+elif use_simu == 'LGF': 
+    data = rf.read_lg_lgf(TA=True)
+elif use_simu == 'AHF':
+    data = rf.read_lg_fullbox(TA=True)
 
-data_lgf = rf.read_lg_lgf()
-data_lgf['Mtot'] = data_lgf['M_M31'] + data_lgf['M_MW']
-data_lgf['Mratio'] = data_lgf['M_M31'] / data_lgf['M_MW']
-data_lgf['Mlog'] = np.log10(data_lgf['Mtot']/mass_norm)
-data_lgf['Vtot'] = np.sqrt(data_lgf['Vrad'] **2 + data_lgf['Vtan'] **2)
-data_lgf['Vlog'] = np.log10(data_lgf['Vtot'])
-data_lgf['R_norm'] = data_lgf['R'] / r_norm
+data = filter_data(data=data, vrad_max=vrad_max, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
+data = rescale_data(data=data, mass_norm=mass_norm, r_norm=r_norm)
 
-# Rescale the data
-if filterData == True:
-    data_lgf = data_lgf[data_lgf['Vrad'] < vrad_max]
-    data_lgf = data_lgf[data_lgf['Vtan'] < vtan_max]
-    data_lgf = data_lgf[data_lgf['R'] < r_max]
-    data_lgf = data_lgf[data_lgf['R'] > r_min]
-    data_lgf = data_lgf[data_lgf['M_MW'] > mass_min]
-    data_lgf['Vrad_norm'] = np.log10(-data_lgf['Vrad'] / vel_norm)
-    data_lgf['Vtan_norm'] = np.log10(data_lgf['Vtan'] / vel_norm)
+print('Data sample ', use_simu, ' total datapoints: ', len(data))
 
-    data_rs = data_rs[data_rs['Vrad'] < vrad_max]
-    data_rs = data_rs[data_rs['Vtan'] < vtan_max]
-    data_rs = data_rs[data_rs['R'] < r_max]
-    data_rs = data_rs[data_rs['R'] > r_min]
-    data_rs = data_rs[data_rs['M_MW'] > mass_min]
-    data_rs['Vrad_norm'] = np.log10(-data_rs['Vrad'] / vel_norm)
-    data_rs['Vtan_norm'] = np.log10(data_rs['Vtan'] / vel_norm)
+v_step = 20.0
 
-    data_ahf = data_ahf[data_ahf['Vrad'] < vrad_max]
-    data_ahf = data_ahf[data_ahf['Vtan'] < vtan_max]
-    data_ahf = data_ahf[data_ahf['R'] < r_max]
-    data_ahf = data_ahf[data_ahf['R'] > r_min]
-    data_ahf = data_ahf[data_ahf['M_MW'] > mass_min]
-    data_ahf['Vrad_norm'] = np.log10(-data_ahf['Vrad'] / vel_norm)
-    data_ahf['Vtan_norm'] = np.log10(data_ahf['Vtan'] / vel_norm)
+vrad_bins = []
+vrad_labels = []
+vrad_bins.append(0.0)
 
-print('Data sample numbers. LGF: ', len(data_lgf), ' BigMD: ', len(data_rs), ' SmallBox: ', len(data_ahf))
+for i in range(0, 9):
+    vrad_max = -i * v_step
+    vrad_min = -(i +1) * v_step
 
+    data_new = filter_data(data=data, vrad_max=vrad_max, vrad_min=vrad_min, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
+
+    percentiles = np.percentile(data_new['Mtot'], [20, 50, 80])
+
+    print('(', vrad_max, ', ', vrad_min, ') sample: ', len(data_new), 'percentiles: ', percentiles )
+
+    this_bin = vrad_min
+    vrad_bins.append(this_bin)
+    this_label = str(this_bin)
+    vrad_labels.append(this_label)
+
+vrad_bins.reverse() 
+vrad_labels.reverse() 
+
+r_min0 = 300
+r_step = 100
+
+for i in range(0, 12):
+    r_min = r_min0 + i * r_step
+    r_max = r_min + r_step
+
+    data_new = filter_data(data=data, vrad_max=0.0, vrad_min=-200, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
+
+    vtan_bins = [0, 100, 1000]
+    vtan_labels = ['Vtan<100', 'Vtan>100']
+
+    vrad_binned = pd.cut(data_new['Vrad'], labels=vrad_labels, bins=vrad_bins)
+    data_new.insert(1,'Vrad_bin',vrad_binned)
+
+    vtan_binned = pd.cut(data_new['Vtan'], labels=vtan_labels, bins=vtan_bins)
+    data_new.insert(1,'Vtan_bin',vtan_binned)
+
+    sns.violinplot(y='Mlog', x='Vrad_bin', data=data_new, hue='Vtan_bin', split=True, inner="quartile")
+
+    mlog_med = '%.3f' % np.median(data_new['Mlog'])
+
+    slopes = np.polyfit(-data_new['Vrad_norm'], data_new['Mlog'], 1)
+
+    slope = '%.3f' % slopes[0]
+    title = 'R = [' + str(r_min) + ', ' + str(r_max) + '], median log10(Mtot) = ' + mlog_med + ', slope: ' + slope 
+    out_file = 'output/violinplot_vrad_Mlog_R' + str(i) + '.png'
+    print('Saving violin plot: ', out_file, ' sample size: ', len(data_new))
+    plt.title(title)
+    plt.savefig(out_file)
+    plt.cla()
+    plt.clf()
+    #plt.show()
+
+
+'''
 # 1D Distributions
-#col = 'R'
 col = 'Mlog'
+#col = 'R'
 #col = 'Mratio'
 #col = 'Vtan'; plt.xlim(0, 500.0)
 #col = 'Vrad'; plt.xlim(-500.0, 190.0)
@@ -156,7 +212,7 @@ plt.title(title)
 plt.savefig(file_out)
 
 #plt.show()
-
+'''
 
 
 
