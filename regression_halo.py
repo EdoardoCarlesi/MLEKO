@@ -8,6 +8,7 @@
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
@@ -21,15 +22,15 @@ import seaborn as sns
 import numpy as np
 import read_files as rf
 import tools as t
-
+import pickle
 
 sns.set_style('whitegrid')
 
 #data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
 
-#data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
-#data = rf.read_lg_rs_fullbox(TA=True); name_add = '_rs'
-data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
+data = rf.read_lg_fullbox(TA=True); name_add = '_sb'
+#data = rf.read_lg_rs_fullbox(files=[0, 20]); name_add = '_rs'
+#data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
 
 all_columns = ['M_M31', 'M_MW', 'R', 'Vrad', 'Vtan', 'Nsub_M31', 'Nsub_MW', 'Npart_M31', 'Npart_MW', 'Vmax_MW', 'Vmax_M31', 'lambda_MW',
        'lambda_M31', 'cNFW_MW', 'c_NFW_M31', 'Xc_LG', 'Yc_LG', 'Zc_LG', 'AngMom', 'Energy', 'x_32', 'y_32', 'z_32', 'l1_32', 'l2_32', 'l3_32', 'dens_32', 
@@ -49,9 +50,9 @@ data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
 data['Mlog'] = np.log10(data['Mtot']/mass_norm)
 
-# Best parameter set AHF
-if name_add == '_ahf':
-    boot = False; n_estimators = 100
+# Best parameter set SmallBox
+if name_add == '_sb':
+    boot = False; n_estimators = 75
 
     mratio_max = 4.0
     vrad_max = -1.0
@@ -73,15 +74,22 @@ if name_add == '_lgf':
 
 # Best parameter set RS
 if name_add == '_rs':
-    boot = False; n_estimators = 100
+    boot = True; n_estimators = 10000
 
-    mratio_max = 4.0
+    mratio_max = 6.0
     vrad_max = -1.0
-    vtan_max = 100.0
-    r_max = 1200.0
+    #vtan_max = 100.0
+    vtan_max = 1000.0
+    r_max = 1500.0
     r_min = 400.0
-    mass_min = 6.0e+11
+    mass_min = 5.0e+11
 
+# Set some parameters for the random forest and gradient boosted trees
+max_depth = 5
+max_samples = 50
+min_samples_split = 10
+n_jobs = 2
+test_size = 0.2
 
 data = data[data['Vrad'] < vrad_max]
 print('Ndata after Vrad cut: ', len(data))
@@ -101,7 +109,11 @@ all_v = data['Vrad'].values
 all_tam = np.zeros((len(all_r)))
 
 data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
-data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
+try:
+    data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
+except:
+    print('No timing argument mass')
+
 data['Vtan'] = np.log(data['Vtan'] / 100.0)
 data['Vtot'] = np.sqrt(data['Vtan'].apply(lambda x: x*x) + data['Vrad'].apply(lambda x: x*x))
 data['Ekin'] = 0.5 * data['Vtot'].apply(lambda x: x*x)
@@ -115,27 +127,14 @@ print(data['Vtot'])
 #plt.show()
 #sns.lmplot(x=dens, y=l_tot, data=data)
 
-# Set some parameters for the random forest and gradient boosted trees
-#n_estimators = 100; boot = False
-max_depth = 12
-max_samples = 100
-min_samples_split = 20
-n_jobs = 2
-test_size = 0.2
-
-regressor_type = 'random_forest'
+regressor_type = 'decision_tree'
+#regressor_type = 'random_forest'
 #regressor_type = 'gradient_boost'
 #regressor_type = 'linear'
 
 # Regression type, feature selection and target variable
-#train_cols = ['R','Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
-#train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
-#train_cols = ['R', 'Vrad', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
-#train_cols = ['R','Vrad', 'Vtan', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
-#train_cols = ['R','Vrad', 'Vtan', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
-
 #train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
+train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
@@ -156,8 +155,20 @@ regressor_type = 'random_forest'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['M_M31','M_MW', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
 
-train_cols = ['R', 'Vrad']; test_col = 'Vtan'; train_type = 'vel_tan'
-train_cols = ['Vrad', 'Vtot']; test_col = 'Vtan'; train_type = 'vel_tan'
+
+
+#train_cols = ['R','Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R', 'Vrad', 'Vtan', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R','Vrad', 'Vtan', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R','Vrad', 'Vtan', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
+
+
+
+
+#train_cols = ['R', 'Vrad']; test_col = 'Vtan'; train_type = 'vel_tan'
+#train_cols = ['R', 'Vrad', 'Mtot']; test_col = 'Vtan'; train_type = 'vel_tan'
+#train_cols = ['Vrad', 'Vtot']; test_col = 'Vtan'; train_type = 'vel_tan'
 #train_cols = ['Mtot','R', 'Vrad']; test_col = 'Vtan'; train_type = 'vel_tan'
 #train_cols = ['Mtot','R', 'Vrad', 'Mratio']; test_col = 'Vtan'; train_type = 'vel_tan'
 #train_cols = ['Mtot','R', 'Vrad', 'Energy']; test_col = 'Vtan'; train_type = 'vel_tan'
@@ -196,6 +207,10 @@ elif regressor_type == 'gradient_boost':
 elif regressor_type == 'linear':
     regressor = LinearRegression()
 
+elif regressor_type == 'decision_tree':
+    regressor = DecisionTreeRegressor()
+
+
 reg_name = regressor_type + '_' + train_type
 
 #data['AngMom'] = data['AngMom'].apply(lambda x: np.log10(x))
@@ -217,12 +232,20 @@ print(data_pca.head())
 # Select the features for the training and test set
 X = data[train_cols]
 y = data[test_col]
-z = data['Mlog_TA']
+
+try:
+    z= data['Mlog_TA']
+except:
+    print('No timing argument mass')
 
 print('Total size: ', X.count())
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = 42)
-X_train, X_test, z_train, z_test = train_test_split(X, z, test_size = test_size, random_state = 42)
+
+try:
+    X_train, X_test, z_train, z_test = train_test_split(X, z, test_size = test_size, random_state = 42)
+except:
+    'No TA'
 
 print('Train size: ', len(X_train))
 print('Test size: ', len(X_test))
@@ -237,6 +260,13 @@ scaler.fit(X_train)
 #X_test = scaler.transform(X_test)
 
 regressor.fit(X_train, y_train)
+
+filename = 'output/' + reg_name + '_model.pkl'
+print('Saving model to: ', filename)
+pickle.dump(regressor, open(filename, 'wb'))
+
+print('X TEST: ')
+print(X_test)
 predictions = regressor.predict(X_test)
 
 mae = metrics.mean_absolute_error(y_test, predictions)
@@ -244,11 +274,15 @@ msq = metrics.mean_squared_error(y_test, predictions)
 mape = t.MAPE(y_test, predictions)
 
 slope = np.polyfit(y_test, predictions, 1)
-slope_ta = np.polyfit(z_test, predictions, 1)
-slope_ta_pred = np.polyfit(z_test, y_test, 1)
 
-print('Slope TA: ', slope_ta)
-print('Slope TA pred: ', slope_ta_pred)
+try:
+    slope_ta = np.polyfit(z_test, predictions, 1)
+    slope_ta_pred = np.polyfit(z_test, y_test, 1)
+    print('Slope TA: ', slope_ta)
+    print('Slope TA pred: ', slope_ta_pred)
+except:
+    print('No timing argument mass')
+
     
 col_ratio = 'pred_true_ratio'
 
@@ -283,7 +317,7 @@ for feat in train_cols:
     feat_title = feat_title + '_' + feat
 
 reg_name = reg_name + feat_title
-title = name_add + feat_title + ' slope= ' + '%5.3f' % slope[0]
+title = 'Correlation' + feat_title + ' slope= ' + '%5.3f' % slope[0]
 
 plt.figure(figsize=(5, 5))
 sns.kdeplot(data[cols[0]], data[cols[1]])
@@ -313,13 +347,16 @@ plt.savefig(file_output)
 plt.clf()
 plt.cla()
 file_output_ratio ='output/ratio_' + reg_name + name_add + '.png' 
-sns.distplot(data[col_ratio], bins=50)
+sns.distplot(data[col_ratio], bins=30)
 
 data = data.dropna()
-vel_med = np.median(data[col_ratio])
-title = cols[0] + '_' + cols[1] + ' Median= ' + '%5.3f' % vel_med
+med = np.median(data[col_ratio])
+std = np.std(data[col_ratio])
+title = cols[1] + '_' + cols[0] + ' med: ' + '%5.3f' % med + ', std: %5.3f' % std
 
-print('save ratio to:', file_output_ratio, ' median: ', vel_med)
+print('Ratio, median=', med, ' std=', std)
+
+print('save ratio to:', file_output_ratio, ' median: ', med, ' stddev: ', std)
 plt.title(title)
 plt.savefig(file_output_ratio)
 
