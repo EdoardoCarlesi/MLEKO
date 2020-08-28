@@ -7,73 +7,75 @@ import matplotlib.pyplot as plt
 
 from sklearn.ensemble import RandomForestRegressor
 
-# Multiply by -1 at the and
-vrad = [1.0, 120]; vtan = [1.0, 1200]; rad  = [7.0, 1200]
-#vrad = [100.0, 130.0]; vtan = [1.0, 160]; rad  = [600.0, 700.0]
 
-n_pts=10000
+def montecarlo(vrad=[100.0, 120.0], vtan=[1.0, 160.0], rad=[600.0, 700.0], extra_info='mass_total', distribution='flat', show=False,
+                n_pts=1000, n_bins=15, regressor_type='random_forest', regressor_file=None, cols=['Vrad_norm', 'R', 'Vtan_norm']):
 
-# Generate a random list of integers
-rd.seed()
-int_list = rd.sample(range(0, n_pts), n_pts)
+    # Generate a random list of integers
+    rd.seed()
 
-# Resolution
-d_vrad = (vrad[1] - vrad[0]) / float(n_pts)
-d_vtan = (vtan[1] - vtan[0]) / float(n_pts)
-d_rad = (rad[1] - rad[0]) / float(n_pts)
+    if distribution == 'flat':
+        int_list = rd.sample(range(0, n_pts), n_pts)
 
-# Initialize some arrays
-vrads = np.zeros((n_pts))
-vtans = np.zeros((n_pts))
-rads = np.zeros((n_pts))
+        # Resolution
+        d_vrad = (vrad[1] - vrad[0]) / float(n_pts)
+        d_vtan = (vtan[1] - vtan[0]) / float(n_pts)
+        d_rad = (rad[1] - rad[0]) / float(n_pts)
 
-# Fill the arrays
-for i, step in enumerate(int_list):
-    vrads[i] = -(vrad[0] + step * d_vrad)
-    vtans[i] =  (vtan[0] + step * d_vtan)
-    rads[i] =  (rad[0] + step * d_rad)
+        # Initialize some arrays
+        vrads = np.zeros((n_pts))
+        vtans = np.zeros((n_pts))
+        rads = np.zeros((n_pts))
 
-# Put everything into a dataframe
-mc_df = pd.DataFrame()
-mc_df['R'] = rads
-mc_df['Vrad'] = vrads
-mc_df['Vtan'] = vtans
-mc_df['R_norm'] = rads/1000.0
-mc_df['Vrad_norm'] = np.log10(-vrads/100.0)
-mc_df['Vtan_norm'] = np.log10(vtans/100.0)
+        # Fill the arrays
+        for i, step in enumerate(int_list):
+            vrads[i] = -(vrad[0] + step * d_vrad)
+            vtans[i] =  (vtan[0] + step * d_vtan)
+            rads[i] =  (rad[0] + step * d_rad)
 
-# Sanity check
-#print(mc_df.head())
+    elif distribution == 'gauss':
+        vrad_med = np.median(vrad)
+        vrad_sig = np.abs(vrad_med - vrad[0])
 
-# Now load a Ml model 
-regressor_type = 'decision_tree'
-#regressor_type = 'random_forest'
-#regressor_type = 'gradient_boost'
-#regressor_type = 'linear'
-regressor_file = 'output/' + regressor_type + '_mass_total_model.pkl'
+        vtan_med = np.median(vtan)
+        vtan_sig = np.abs(vtan_med - vtan[0])
 
-regressor = pickle.load(open(regressor_file, 'rb'))
+        rad_med = np.median(rad)
+        rad_sig = np.abs(rad_med - rad[0])
 
-print('Loaded ', regressor_file)
+        vrads = np.random.normal(loc=vrad_med, scale=vrad_sig, size=n_pts)
+        vtans = np.random.normal(loc=vtan_med, scale=vtan_sig, size=n_pts)
+        rads = np.random.normal(loc=rad_med, scale=rad_sig, size=n_pts)
 
-cols = ['Vrad_norm', 'R', 'Vtan_norm']
+    # Put everything into a dataframe
+    mc_df = pd.DataFrame()
+    mc_df['R'] = rads
+    mc_df['Vrad'] = vrads
+    mc_df['Vtan'] = vtans
+    mc_df['R_norm'] = rads/1000.0
+    mc_df['Vrad_norm'] = np.log10(-vrads/100.0)
+    mc_df['Vtan_norm'] = np.log10(vtans/100.0)
 
-mc_df = mc_df.dropna()
+    # Sanity check
+    #print(mc_df.head())
 
-X_mc = mc_df[cols]
+    regressor = pickle.load(open(regressor_file, 'rb'))
+    print('Loading regression model from: ', regressor_file)
 
-predict_mc = regressor.predict(X_mc)
+    mc_df = mc_df.dropna()
+    X_mc = mc_df[cols]
+    predict_mc = regressor.predict(X_mc)
 
-print('Percentiles: ', np.percentile(predict_mc, [25, 50, 75]))
+    print('Percentiles: ', np.percentile(predict_mc, [25, 50, 75]))
 
-sns.distplot(predict_mc, bins=20)
-plt.xlabel('log10(Mtot)')
-title = 'MC Mtot ' + regressor_type  
-plt.title(title)
-out_name = 'output/' + regressor_type + '_mc_mass_total_bigmd.png'
-plt.tight_layout()
-plt.savefig(out_name)
-plt.show()
+    sns.distplot(predict_mc, bins=n_bins)
+    plt.xlabel('log10(Mtot)')
+    title = 'MC Mtot ' + regressor_type  
+    plt.title(title)
+    out_name = 'output/montecarlo_' + regressor_type + extra_info + '.png'
+    plt.tight_layout()
+    plt.savefig(out_name)
 
-
+    if show == True:
+        plt.show()
 

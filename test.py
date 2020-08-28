@@ -5,7 +5,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
+import mc_datagen as mc
 
+mc.montecarlo(distribution='gauss')
+
+
+'''
 data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
 
 vrad_max = -1.0
@@ -28,5 +33,5 @@ sns.distplot(data['Mratio_TA'], bins=50)
 title = 'TA to true M ratio median = ' + '%.3f' % ta_median
 plt.title(title)
 plt.savefig('output/ratio_MTA_true')
+'''
 plt.show()
-

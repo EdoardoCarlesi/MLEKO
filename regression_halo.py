@@ -23,13 +23,15 @@ import numpy as np
 import read_files as rf
 import tools as t
 import pickle
+import mc_datagen as mc
 
 sns.set_style('whitegrid')
 
+do_mc = True
 #data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
 
-data = rf.read_lg_fullbox(TA=True); name_add = '_sb'
-#data = rf.read_lg_rs_fullbox(files=[0, 20]); name_add = '_rs'
+#data = rf.read_lg_fullbox(TA=True); name_add = '_sb'
+data = rf.read_lg_rs_fullbox(files=[0, 20]); name_add = '_rs'
 #data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
 
 all_columns = ['M_M31', 'M_MW', 'R', 'Vrad', 'Vtan', 'Nsub_M31', 'Nsub_MW', 'Npart_M31', 'Npart_MW', 'Vmax_MW', 'Vmax_M31', 'lambda_MW',
@@ -52,9 +54,9 @@ data['Mlog'] = np.log10(data['Mtot']/mass_norm)
 
 # Best parameter set SmallBox
 if name_add == '_sb':
-    boot = False; n_estimators = 75
+    boot = False; n_estimators = 10
 
-    mratio_max = 4.0
+    mratio_max = 40.0
     vrad_max = -1.0
     vtan_max = 1000.0
     r_max = 1200.0
@@ -63,9 +65,9 @@ if name_add == '_sb':
 
 # Best parameter set LGF
 if name_add == '_lgf':
-    boot = False; n_estimators = 100
+    boot = False; n_estimators = 500
 
-    mratio_max = 6.0
+    mratio_max = 60.0
     vrad_max = -1.0
     vtan_max = 1000.0
     r_max = 1500.0
@@ -74,21 +76,24 @@ if name_add == '_lgf':
 
 # Best parameter set RS
 if name_add == '_rs':
-    boot = True; n_estimators = 10000
+    boot = True; n_estimators = 1000
 
-    mratio_max = 6.0
+    mratio_max = 100.0
     vrad_max = -1.0
     #vtan_max = 100.0
     vtan_max = 1000.0
     r_max = 1500.0
     r_min = 400.0
-    mass_min = 5.0e+11
+    mass_min = 1.0e+11
 
 # Set some parameters for the random forest and gradient boosted trees
-max_depth = 5
-max_samples = 50
-min_samples_split = 10
+max_depth = 100
+max_samples = 100
+max_features = 1
+min_samples_split = 2
+min_samples_leaf = 3
 n_jobs = 2
+n_bins = 35
 test_size = 0.2
 
 data = data[data['Vrad'] < vrad_max]
@@ -99,10 +104,10 @@ data = data[data['R'] > r_min]
 print('Ndata after Rmin cut: ', len(data))
 data = data[data['Vtan'] < vtan_max]
 print('Ndata after Vtan cut: ', len(data))
-data = data[data['Mratio'] < mratio_max]
-print('Ndata after Mratio cut: ', len(data))
 data = data[data['M_MW'] > mass_min]
 print('Ndata after M_MW cut: ', len(data))
+data = data[data['Mratio'] < mratio_max]
+print('Ndata after Mratio cut: ', len(data))
 
 all_r = data['R'].values
 all_v = data['Vrad'].values
@@ -127,54 +132,23 @@ print(data['Vtot'])
 #plt.show()
 #sns.lmplot(x=dens, y=l_tot, data=data)
 
-regressor_type = 'decision_tree'
+#regressor_type = 'decision_tree'
 #regressor_type = 'random_forest'
 #regressor_type = 'gradient_boost'
-#regressor_type = 'linear'
+regressor_type = 'linear'
 
 # Regression type, feature selection and target variable
 #train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
 train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan', 'Energy', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['M_M31', 'M_MW', 'R', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['Vrad']; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan', 'M_MW']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan', l1, l2, l3, dens]; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'AngMom', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan', dens]; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', dens]; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan', dens]; test_col = 'Mtot'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['M_M31','M_MW', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
 
-
-
-#train_cols = ['R','Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R', 'Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
-#train_cols = ['R','Vrad', 'Vtan', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
-#train_cols = ['R','Vrad', 'Vtan', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
-
-
-
+#train_cols = ['R', 'Vrad', 'Vtan', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
 #train_cols = ['R', 'Vrad']; test_col = 'Vtan'; train_type = 'vel_tan'
 #train_cols = ['R', 'Vrad', 'Mtot']; test_col = 'Vtan'; train_type = 'vel_tan'
-#train_cols = ['Vrad', 'Vtot']; test_col = 'Vtan'; train_type = 'vel_tan'
-#train_cols = ['Mtot','R', 'Vrad']; test_col = 'Vtan'; train_type = 'vel_tan'
-#train_cols = ['Mtot','R', 'Vrad', 'Mratio']; test_col = 'Vtan'; train_type = 'vel_tan'
-#train_cols = ['Mtot','R', 'Vrad', 'Energy']; test_col = 'Vtan'; train_type = 'vel_tan'
-
-#train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_m31'
-#train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
 base_slope = np.polyfit(data[train_cols[0]], data[test_col], 1)
 print('BaseSlope: ', base_slope)
@@ -194,7 +168,9 @@ print('ResultSlope: ', base_result_slope)
 if regressor_type == 'random_forest':
     regressor = RandomForestRegressor(n_estimators=n_estimators, 
                                         max_depth=max_depth, 
+                                        max_features=max_features,
                                         min_samples_split=min_samples_split, 
+                                        min_samples_leaf=min_samples_leaf,
                                         #criterion=criterion,
                                         bootstrap=boot,
                                         max_samples=max_samples,
@@ -260,10 +236,6 @@ scaler.fit(X_train)
 #X_test = scaler.transform(X_test)
 
 regressor.fit(X_train, y_train)
-
-filename = 'output/' + reg_name + '_model.pkl'
-print('Saving model to: ', filename)
-pickle.dump(regressor, open(filename, 'wb'))
 
 print('X TEST: ')
 print(X_test)
@@ -337,7 +309,6 @@ try:
 except:
     print('No feature importance')
     
-#plt.scatterplot(y_test, predictions)
 plt.tight_layout()
 
 file_output ='output/' + reg_name + name_add + '.png' 
@@ -347,7 +318,7 @@ plt.savefig(file_output)
 plt.clf()
 plt.cla()
 file_output_ratio ='output/ratio_' + reg_name + name_add + '.png' 
-sns.distplot(data[col_ratio], bins=30)
+sns.distplot(data[col_ratio], bins=n_bins)
 
 data = data.dropna()
 med = np.median(data[col_ratio])
@@ -360,9 +331,23 @@ print('save ratio to:', file_output_ratio, ' median: ', med, ' stddev: ', std)
 plt.title(title)
 plt.savefig(file_output_ratio)
 
+regressor_file = 'output/regressor_' + name_add + '_model.pkl'
+print('Saving model to: ', regressor_file)
+pickle.dump(regressor, open(regressor_file, 'wb'))
 
 
+if do_mc == True:
+    vrad = [100, 120]
+    vtan = [0, 160]
+    r = [600, 700]
 
+    mc.montecarlo(vrad=vrad, vtan=vtan, rad=r, extra_info=name_add, distribution='gauss', show=True, regressor_file=regressor_file)
+
+    '''
+    vrad=[100.0, 120.0], vtan=[1.0, 160.0], rad=[600.0, 700.0], extra_info='mass_total', distribution='flat', show=False,
+                n_pts=1000, n_bins=15, regressor_type='random_forest', regressor_file=None, cols=['Vrad_norm', 'R', 'Vtan_norm']
+
+    '''
 
 
 
