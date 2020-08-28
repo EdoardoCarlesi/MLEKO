@@ -337,11 +337,15 @@ pickle.dump(regressor, open(regressor_file, 'wb'))
 
 
 if do_mc == True:
-    vrad = [100, 120]
-    vtan = [0, 160]
-    r = [600, 700]
-
-    mc.montecarlo(vrad=vrad, vtan=vtan, rad=r, extra_info=name_add, distribution='gauss', show=True, regressor_file=regressor_file)
+    mc.montecarlo(vrad=[100, 120], 
+                    vtan=[1, 200],  
+                    rad=[600, 700], 
+                    extra_info=name_add, 
+                    distribution='gauss', 
+                    n_pts=n_pts, 
+                    show=True, 
+                    cols=
+                    regressor_file=regressor_file)
 
     '''
     vrad=[100.0, 120.0], vtan=[1.0, 160.0], rad=[600.0, 700.0], extra_info='mass_total', distribution='flat', show=False,

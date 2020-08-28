@@ -48,6 +48,104 @@ def filter_data(data=None, vrad_max=-1.0, vrad_min=-200.0, r_max=1500.0, r_min=3
     return data
 
 
+def equal_number_per_bin(data=None, n_bins=10, bin_col='Mvir'):
+    
+    bins = np.zeros((n_bins))
+
+    bins[0] = data[bin_col].min()
+    bins[n_bins-1] = data[bin_col].max()
+    bin_size = (bins[n_bins-1] - bins[0]) / float(n_bins)
+ 
+    for i in range(1, n_bins-1):
+        bins[i] = bin_size * i
+
+
+    return new_data
+
+
+def radial_velocity_binning(use_simu=None, data=None, vrad_max=vrad_max, vrad_min=vrad_min, 
+                           r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max):
+
+    print('Data sample ', use_simu, ' total datapoints: ', len(data))
+
+    v_step = 20.0
+    vrad_bins = []
+    vrad_labels = []
+    vrad_bins.append(0.0)
+
+    for i in range(0, 9):
+        vrad_max = -i * v_step
+        vrad_min = -(i +1) * v_step
+
+        data_new = filter_data(data=data, vrad_max=vrad_max, vrad_min=vrad_min, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
+
+        percentiles = np.percentile(data_new['Mtot'], [20, 50, 80])
+
+        print('(', vrad_max, ', ', vrad_min, ') sample: ', len(data_new), 'percentiles: ', percentiles )
+
+        this_bin = vrad_min
+        vrad_bins.append(this_bin)
+        this_label = str(this_bin)
+        vrad_labels.append(this_label)
+
+    vrad_bins.reverse() 
+    vrad_labels.reverse() 
+
+    r_min0 = 300
+    r_step = 100
+
+    for i in range(0, 12):
+        r_min = r_min0 + i * r_step
+        r_max = r_min + r_step
+
+        data_new = filter_data(data=data, vrad_max=0.0, vrad_min=-200, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
+
+        vtan_bins = [0, 100, 1000]
+        vtan_labels = ['Vtan<100', 'Vtan>100']
+
+        vrad_binned = pd.cut(data_new['Vrad'], labels=vrad_labels, bins=vrad_bins)
+        data_new.insert(1,'Vrad_bin',vrad_binned)
+
+        vtan_binned = pd.cut(data_new['Vtan'], labels=vtan_labels, bins=vtan_bins)
+        data_new.insert(1,'Vtan_bin',vtan_binned)
+
+        sns.violinplot(y='Mlog', x='Vrad_bin', data=data_new, hue='Vtan_bin', split=True, inner="quartile")
+
+        mlog_med = '%.3f' % np.median(data_new['Mlog'])
+
+        slopes = np.polyfit(-data_new['Vrad_norm'], data_new['Mlog'], 1)
+
+        slope = '%.3f' % slopes[0]
+        title = 'R = [' + str(r_min) + ', ' + str(r_max) + '], median log10(Mtot) = ' + mlog_med + ', slope: ' + slope 
+        out_file = 'output/violinplot_vrad_Mlog_R' + str(i) + '.png'
+
+        print('Saving violin plot: ', out_file, ' sample size: ', len(data_new))
+
+        plt.title(title)
+        plt.savefig(out_file)
+        plt.cla()
+        plt.clf()
+ 
+
+def distributions_1D(data_lgf=None, data_ahf=None, data_rs=None, col='Mlog', xlim=False):
+
+    if xlim == True:
+        plt.xlim(0, 500.0)
+        plt.xlim(-500.0, 190.0)
+
+    sns.distplot(data_lgf[col], color='blue', label='LGF')
+    sns.distplot(data_ahf[col], color='red', label='SmallBox')
+    sns.distplot(data_rs[col], color='green', label='BigMD')
+    plt.legend()
+
+    file_out = 'output/distplot_compare_' + col + '.png'
+    plt.savefig(file_out)
+
+    plt.clf()
+    plt.cla()
+
+
+
 '''
         MAIN PROGRAM
 '''
@@ -88,88 +186,12 @@ elif use_simu == 'AHF':
 data = filter_data(data=data, vrad_max=vrad_max, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
 data = rescale_data(data=data, mass_norm=mass_norm, r_norm=r_norm)
 
-print('Data sample ', use_simu, ' total datapoints: ', len(data))
+radial_velocity_binning(data=data)
 
-v_step = 20.0
 
-vrad_bins = []
-vrad_labels = []
-vrad_bins.append(0.0)
-
-for i in range(0, 9):
-    vrad_max = -i * v_step
-    vrad_min = -(i +1) * v_step
-
-    data_new = filter_data(data=data, vrad_max=vrad_max, vrad_min=vrad_min, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
-
-    percentiles = np.percentile(data_new['Mtot'], [20, 50, 80])
-
-    print('(', vrad_max, ', ', vrad_min, ') sample: ', len(data_new), 'percentiles: ', percentiles )
-
-    this_bin = vrad_min
-    vrad_bins.append(this_bin)
-    this_label = str(this_bin)
-    vrad_labels.append(this_label)
-
-vrad_bins.reverse() 
-vrad_labels.reverse() 
-
-r_min0 = 300
-r_step = 100
-
-for i in range(0, 12):
-    r_min = r_min0 + i * r_step
-    r_max = r_min + r_step
-
-    data_new = filter_data(data=data, vrad_max=0.0, vrad_min=-200, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
-
-    vtan_bins = [0, 100, 1000]
-    vtan_labels = ['Vtan<100', 'Vtan>100']
-
-    vrad_binned = pd.cut(data_new['Vrad'], labels=vrad_labels, bins=vrad_bins)
-    data_new.insert(1,'Vrad_bin',vrad_binned)
-
-    vtan_binned = pd.cut(data_new['Vtan'], labels=vtan_labels, bins=vtan_bins)
-    data_new.insert(1,'Vtan_bin',vtan_binned)
-
-    sns.violinplot(y='Mlog', x='Vrad_bin', data=data_new, hue='Vtan_bin', split=True, inner="quartile")
-
-    mlog_med = '%.3f' % np.median(data_new['Mlog'])
-
-    slopes = np.polyfit(-data_new['Vrad_norm'], data_new['Mlog'], 1)
-
-    slope = '%.3f' % slopes[0]
-    title = 'R = [' + str(r_min) + ', ' + str(r_max) + '], median log10(Mtot) = ' + mlog_med + ', slope: ' + slope 
-    out_file = 'output/violinplot_vrad_Mlog_R' + str(i) + '.png'
-    print('Saving violin plot: ', out_file, ' sample size: ', len(data_new))
-    plt.title(title)
-    plt.savefig(out_file)
-    plt.cla()
-    plt.clf()
-    #plt.show()
 
 
 '''
-# 1D Distributions
-col = 'Mlog'
-#col = 'R'
-#col = 'Mratio'
-#col = 'Vtan'; plt.xlim(0, 500.0)
-#col = 'Vrad'; plt.xlim(-500.0, 190.0)
-#col = 'Vrad_norm'
-#col = 'Vtan_norm'
-
-sns.distplot(data_lgf[col], color='blue', label='LGF')
-sns.distplot(data_ahf[col], color='red', label='SmallBox')
-sns.distplot(data_rs[col], color='green', label='BigMD')
-plt.legend()
-
-file_out = 'output/distplot_compare_' + col + '.png'
-plt.savefig(file_out)
-
-plt.clf()
-plt.cla()
-
 # 2D Distributions
 col_x = 'Mlog'
 #col_y = 'R_norm'
