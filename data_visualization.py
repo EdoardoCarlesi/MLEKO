@@ -48,7 +48,7 @@ def filter_data(data=None, vrad_max=-1.0, vrad_min=-200.0, r_max=1500.0, r_min=3
     return data
 
 
-def equal_number_per_bin(data=None, n_bins=10, bin_col='Mvir'):
+def equal_number_per_bin(data=None, n_bins=10, bin_col='Mlog'):
     
     bins = np.zeros((n_bins))
 
@@ -59,12 +59,24 @@ def equal_number_per_bin(data=None, n_bins=10, bin_col='Mvir'):
     for i in range(1, n_bins-1):
         bins[i] = bin_size * i
 
+    print(bins)
+
+    new_data = data[data[bin_col] > bins[n_bins-2]]
+    n_sample = len(new_data)
+
+    for i in range(1, n_bins-1):
+        this_data = data[data[bin_col] < bins[n_bins-i-1]] 
+        this_data = this_data[this_data[bin_col] > bins[n_bins-i-2]]
+        this_data = this_data.sample(n=n_sample)
+        new_data = pd.concat([new_data, this_data])
+
+    print('NewData: ', len(new_data))
 
     return new_data
 
 
-def radial_velocity_binning(use_simu=None, data=None, vrad_max=vrad_max, vrad_min=vrad_min, 
-                           r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max):
+def radial_velocity_binning(use_simu=None, data=None, vrad_max=-10.0, vrad_min=-120.0, 
+                           r_max=1500.0, r_min=300.0, vel_norm=100.0, mass_min=4.0e+11, vtan_max=200.0):
 
     print('Data sample ', use_simu, ' total datapoints: ', len(data))
 
@@ -145,95 +157,97 @@ def distributions_1D(data_lgf=None, data_ahf=None, data_rs=None, col='Mlog', xli
     plt.cla()
 
 
+def distributions_2D(data_lgf=None, data_ahf=None, data_rs=None, col='Mlog', xlim=False):
+
+    # 2D Distributions
+    col_x = 'Mlog'
+    #col_y = 'R_norm'
+    col_y = 'Vrad_norm'
+    #col_y = 'Vtan_norm'
+    n_levels = 4
+
+    # Linear fit
+    slope_lgf = np.polyfit(data_lgf[col_x], data_lgf[col_y], 1)
+    slope_rs = np.polyfit(data_rs[col_x], data_rs[col_y], 1)
+    slope_ahf = np.polyfit(data_ahf[col_x], data_ahf[col_y], 1)
+
+    x = [data_lgf[col_x].min(), data_lgf[col_x].max()]
+    y_lgf = [slope_lgf[0] * x[0] + slope_lgf[1], slope_lgf[0] * x[1] + slope_lgf[1]]
+    y_rs = [slope_rs[0] * x[0] + slope_rs[1], slope_rs[0] * x[1] + slope_rs[1]]
+    y_ahf = [slope_ahf[0] * x[0] + slope_ahf[1], slope_ahf[0] * x[1] + slope_ahf[1]]
+
+    sns.kdeplot(data_lgf[col_x], data_lgf[col_y], color='blue', label='LGF', n_levels = n_levels)
+    sns.kdeplot(data_ahf[col_x], data_ahf[col_y], color='red', label='SmallBox', n_levels = n_levels)
+    sns.kdeplot(data_rs[col_x], data_rs[col_y], color='green', label='BigMD', n_levels = n_levels)
+    
+    sns.lineplot(x, y_lgf, color='blue')
+    sns.lineplot(x, y_rs, color='green')
+    sns.lineplot(x, y_ahf, color='red')
+
+    file_out = 'output/distplot_contours_' + col_x + '_' + col_y + '.png'
+    s_lgf = '%.3f' % slope_lgf[0]
+    s_rs = '%.3f' % slope_rs[0]
+    s_ahf = '%.3f' % slope_ahf[0]
+
+    i_lgf = '%.3f' % slope_lgf[1]
+    i_rs = '%.3f' % slope_rs[1]
+    i_ahf = '%.3f' % slope_ahf[1]
+
+    title  = ' --> SlopeLGF    : ' + s_lgf + ' SmallBox: ' + s_ahf + ' BigMD: ' + s_rs
+    title2 = ' --> InterceptLGF: ' + i_lgf + ' SmallBox: ' + i_ahf + ' BigMD: ' + i_rs
+    print(col_x, col_y, title)
+    print(col_x, col_y, title2)
+    plt.title(title)
+    plt.savefig(file_out)
+
+    #plt.show()
+
 
 '''
         MAIN PROGRAM
 '''
+def main():
+    #use_simu = 'LGF'
+    #use_simu = 'AHF'
+    use_simu = 'RS'
 
-#use_simu = 'LGF'
-#use_simu = 'AHF'
-use_simu = 'RS'
+    sns.set_style('whitegrid')
 
-sns.set_style('whitegrid')
+    # Put some threshold on LG properties from different datasets
+    ratio_max = 4.0
+    mass_min = 6.0e+11
+    vrad_max = -10
+    vrad_min = -200.0
+    vtan_max = 1000.0
+    r_max = 1500.0
+    r_min = 300.0
 
-# Put some threshold on LG properties from different datasets
-ratio_max = 4.0
-mass_min = 6.0e+11
-vrad_max = -10
-vrad_min = -200.0
-vtan_max = 1000.0
-r_max = 1500.0
-r_min = 300.0
+    # Normalization constants
+    mass_norm = 1.0e+12
+    vel_norm = 100.0
+    r_norm = 1000.0
 
-# Normalization constants
-mass_norm = 1.0e+12
-vel_norm = 100.0
-r_norm = 1000.0
+    # Apply some restriction on data properties
+    #filterData = True
+    filterData = False
 
-# Apply some restriction on data properties
-#filterData = True
-filterData = False
+    # Read the different datasetsm rescale and filter
+    if use_simu == 'RS':
+        data = rf.read_lg_rs_fullbox(TA=True)
+    elif use_simu == 'LGF': 
+        data = rf.read_lg_lgf(TA=True)
+    elif use_simu == 'AHF':
+        data = rf.read_lg_fullbox(TA=True)
 
-# Read the different datasetsm rescale and filter
+    data = filter_data(data=data, vrad_max=vrad_max, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
+    data = rescale_data(data=data, mass_norm=mass_norm, r_norm=r_norm)
 
-if use_simu == 'RS':
-    data = rf.read_lg_rs_fullbox(TA=True)
-elif use_simu == 'LGF': 
-    data = rf.read_lg_lgf(TA=True)
-elif use_simu == 'AHF':
-    data = rf.read_lg_fullbox(TA=True)
-
-data = filter_data(data=data, vrad_max=vrad_max, r_max=r_max, r_min=r_min, vel_norm=vel_norm, mass_min=mass_min, vtan_max=vtan_max)
-data = rescale_data(data=data, mass_norm=mass_norm, r_norm=r_norm)
-
-radial_velocity_binning(data=data)
+    radial_velocity_binning(data=data)
 
 
 
 
 '''
-# 2D Distributions
-col_x = 'Mlog'
-#col_y = 'R_norm'
-col_y = 'Vrad_norm'
-#col_y = 'Vtan_norm'
-n_levels = 4
-
-# Linear fit
-slope_lgf = np.polyfit(data_lgf[col_x], data_lgf[col_y], 1)
-slope_rs = np.polyfit(data_rs[col_x], data_rs[col_y], 1)
-slope_ahf = np.polyfit(data_ahf[col_x], data_ahf[col_y], 1)
-
-x = [data_lgf[col_x].min(), data_lgf[col_x].max()]
-y_lgf = [slope_lgf[0] * x[0] + slope_lgf[1], slope_lgf[0] * x[1] + slope_lgf[1]]
-y_rs = [slope_rs[0] * x[0] + slope_rs[1], slope_rs[0] * x[1] + slope_rs[1]]
-y_ahf = [slope_ahf[0] * x[0] + slope_ahf[1], slope_ahf[0] * x[1] + slope_ahf[1]]
-
-sns.kdeplot(data_lgf[col_x], data_lgf[col_y], color='blue', label='LGF', n_levels = n_levels)
-sns.kdeplot(data_ahf[col_x], data_ahf[col_y], color='red', label='SmallBox', n_levels = n_levels)
-sns.kdeplot(data_rs[col_x], data_rs[col_y], color='green', label='BigMD', n_levels = n_levels)
-
-sns.lineplot(x, y_lgf, color='blue')
-sns.lineplot(x, y_rs, color='green')
-sns.lineplot(x, y_ahf, color='red')
-
-file_out = 'output/distplot_contours_' + col_x + '_' + col_y + '.png'
-s_lgf = '%.3f' % slope_lgf[0]
-s_rs = '%.3f' % slope_rs[0]
-s_ahf = '%.3f' % slope_ahf[0]
-
-i_lgf = '%.3f' % slope_lgf[1]
-i_rs = '%.3f' % slope_rs[1]
-i_ahf = '%.3f' % slope_ahf[1]
-
-title  = ' --> SlopeLGF    : ' + s_lgf + ' SmallBox: ' + s_ahf + ' BigMD: ' + s_rs
-title2 = ' --> InterceptLGF: ' + i_lgf + ' SmallBox: ' + i_ahf + ' BigMD: ' + i_rs
-print(col_x, col_y, title)
-print(col_x, col_y, title2)
-plt.title(title)
-plt.savefig(file_out)
-
-#plt.show()
 '''
 
 
