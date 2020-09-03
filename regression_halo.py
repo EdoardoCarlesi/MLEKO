@@ -23,7 +23,9 @@ import numpy as np
 import read_files as rf
 import tools as t
 import pickle
-import mc_datagen as mc
+
+import data_visualization as dv
+import montecarlo as mc
 
 sns.set_style('whitegrid')
 
@@ -42,6 +44,7 @@ print(data.info())
 
 grid = 128
 mass_norm = 1.0e+12
+r_norm = 1000.0
 
 l1 = 'l1_' + str(grid); l2 = 'l2_' + str(grid); l3 = 'l3_' + str(grid)
 dens = 'dens_' + str(grid)
@@ -54,8 +57,6 @@ data['Mlog'] = np.log10(data['Mtot']/mass_norm)
 
 # Best parameter set SmallBox
 if name_add == '_sb':
-    boot = False; n_estimators = 10
-
     mratio_max = 40.0
     vrad_max = -1.0
     vtan_max = 1000.0
@@ -65,8 +66,6 @@ if name_add == '_sb':
 
 # Best parameter set LGF
 if name_add == '_lgf':
-    boot = False; n_estimators = 500
-
     mratio_max = 60.0
     vrad_max = -1.0
     vtan_max = 1000.0
@@ -76,25 +75,26 @@ if name_add == '_lgf':
 
 # Best parameter set RS
 if name_add == '_rs':
-    boot = True; n_estimators = 1000
-
-    mratio_max = 100.0
-    vrad_max = -1.0
-    #vtan_max = 100.0
-    vtan_max = 1000.0
-    r_max = 1500.0
-    r_min = 400.0
-    mass_min = 1.0e+11
+    mratio_max = 5.0
+    vrad_max = -10.0
+    vtan_max = 500.0
+    r_max = 1400.0
+    r_min = 500.0
+    mass_min = 5.0e+11
 
 # Set some parameters for the random forest and gradient boosted trees
-max_depth = 100
-max_samples = 100
-max_features = 1
-min_samples_split = 2
+boot = True
+n_estimators = 90
+
+# Make it high for random forest, small for gradient boosting
+max_depth = 40
+max_samples = 200
+max_features = 3
+min_samples_split = 5
 min_samples_leaf = 3
 n_jobs = 2
-n_bins = 35
-test_size = 0.2
+n_bins = 20
+test_size = 0.3
 
 data = data[data['Vrad'] < vrad_max]
 print('Ndata after Vrad cut: ', len(data))
@@ -109,22 +109,21 @@ print('Ndata after M_MW cut: ', len(data))
 data = data[data['Mratio'] < mratio_max]
 print('Ndata after Mratio cut: ', len(data))
 
-all_r = data['R'].values
-all_v = data['Vrad'].values
-all_tam = np.zeros((len(all_r)))
-
-data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
 try:
     data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
 except:
     print('No timing argument mass')
 
-data['Vtan'] = np.log(data['Vtan'] / 100.0)
+
+# Do some data normalization
+#data['R'] = data['R'] / r_norm
+#data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
+#data['Vtan'] = np.log(data['Vtan'] / 100.0)
 data['Vtot'] = np.sqrt(data['Vtan'].apply(lambda x: x*x) + data['Vrad'].apply(lambda x: x*x))
 data['Ekin'] = 0.5 * data['Vtot'].apply(lambda x: x*x)
 
-print(data['Ekin'])
-print(data['Vtot'])
+equal_label = ''
+data = dv.equal_number_per_bin(data=data, bin_col='Mlog', n_bins=10); equal_label = '_EQbin'
 
 #data['denslog'] = np.log10(data['dens_128'])
 #data[l_tot] = data[l1] + data[l2] + data[l3]
@@ -139,11 +138,11 @@ regressor_type = 'linear'
 
 # Regression type, feature selection and target variable
 #train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
-train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
 
 #train_cols = ['R', 'Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
-#train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
+train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
@@ -166,7 +165,8 @@ print('ResultSlope: ', base_result_slope)
 
 # Select the regressor type
 if regressor_type == 'random_forest':
-    regressor = RandomForestRegressor(n_estimators=n_estimators, 
+    regressor = RandomForestRegressor(
+                                        n_estimators=n_estimators, 
                                         max_depth=max_depth, 
                                         max_features=max_features,
                                         min_samples_split=min_samples_split, 
@@ -177,33 +177,23 @@ if regressor_type == 'random_forest':
                                         n_jobs=n_jobs)
 
 elif regressor_type == 'gradient_boost':
-    regressor = GradientBoostingRegressor(n_estimators = n_estimators, 
-                                            max_depth = max_depth,
-                                            min_samples_split = min_samples_split)
+    regressor = GradientBoostingRegressor(
+                                            n_estimators=n_estimators, 
+                                            max_depth=max_depth,
+                                            max_features=max_features,
+                                            min_samples_leaf=min_samples_leaf,
+                                            min_samples_split=min_samples_split)
 elif regressor_type == 'linear':
     regressor = LinearRegression()
 
 elif regressor_type == 'decision_tree':
-    regressor = DecisionTreeRegressor()
-
+    regressor = DecisionTreeRegressor(
+                                            max_features=max_features,
+                                            min_samples_split=min_samples_split,
+                                            max_depth=max_depth
+                                    )
 
 reg_name = regressor_type + '_' + train_type
-
-#data['AngMom'] = data['AngMom'].apply(lambda x: np.log10(x))
-#data['AngMom'].hist(bins=100)
-#plt.show()
-
-'''
-# Do a PCA to check the data
-pca_percent = 0.9
-#pca_percent = None
-#pca_cols = all_columns
-pca_cols = ['R','Vrad', 'Vtan'] #, 'AngMom', 'Energy'] #, l1, l2, l3, dens]
-data_pca = t.data_pca(data=data, columns=pca_cols, pca_percent=pca_percent)
-print('PCA at ', pca_percent, ' n_components: ', len(data_pca.columns), ' n_original: ', len(all_columns))
-print(data_pca.info())
-print(data_pca.head())
-'''
 
 # Select the features for the training and test set
 X = data[train_cols]
@@ -255,7 +245,6 @@ try:
 except:
     print('No timing argument mass')
 
-    
 col_ratio = 'pred_true_ratio'
 
 if train_type == 'mass_total':
@@ -289,17 +278,25 @@ for feat in train_cols:
     feat_title = feat_title + '_' + feat
 
 reg_name = reg_name + feat_title
-title = 'Correlation' + feat_title + ' slope= ' + '%5.3f' % slope[0]
+title = 'Correlation' + feat_title + equal_label + ' slope= ' + '%5.3f' % slope[0]
 
+# Plot the density levels
 plt.figure(figsize=(5, 5))
 sns.kdeplot(data[cols[0]], data[cols[1]])
 sns.scatterplot(data[cols[0]], data[cols[1]]) #, n_levels = 4)
 sns.lineplot(x, x)
 sns.lineplot(x, yy)
 plt.title(title)
+plt.tight_layout()
+file_output ='output/' + reg_name + equal_label + name_add + '.png' 
 
+print('savefig to: ', file_output)
+plt.savefig(file_output)
+plt.clf()
+plt.cla()
 print('Slope: ', slope)
 
+# Make sure we don't stop the program if the regressor does not support feature importance
 try:
     importances = regressor.feature_importances_
     print('Feature importance:')
@@ -308,16 +305,8 @@ try:
 
 except:
     print('No feature importance')
-    
-plt.tight_layout()
 
-file_output ='output/' + reg_name + name_add + '.png' 
-print('savefig to: ', file_output)
-plt.savefig(file_output)
-
-plt.clf()
-plt.cla()
-file_output_ratio ='output/ratio_' + reg_name + name_add + '.png' 
+file_output_ratio ='output/ratio_' + reg_name + equal_label + name_add + '.png' 
 sns.distplot(data[col_ratio], bins=n_bins)
 
 data = data.dropna()
@@ -326,32 +315,34 @@ std = np.std(data[col_ratio])
 title = cols[1] + '_' + cols[0] + ' med: ' + '%5.3f' % med + ', std: %5.3f' % std
 
 print('Ratio, median=', med, ' std=', std)
+print('Saving ratio to:', file_output_ratio, ' median: ', med, ' stddev: ', std)
 
-print('save ratio to:', file_output_ratio, ' median: ', med, ' stddev: ', std)
 plt.title(title)
 plt.savefig(file_output_ratio)
+plt.clf()
+plt.cla()
 
-regressor_file = 'output/regressor_' + name_add + '_model.pkl'
+regressor_file = 'output/regressor_' + regressor_type + equal_label + name_add + '_model.pkl'
 print('Saving model to: ', regressor_file)
 pickle.dump(regressor, open(regressor_file, 'wb'))
 
-
 if do_mc == True:
-    mc.montecarlo(vrad=[100, 120], 
-                    vtan=[1, 200],  
-                    rad=[600, 700], 
-                    extra_info=name_add, 
+    n_pts=1000 
+    #cols=['Vrad', 'R', 'Vtan']
+    cols=train_cols
+    df_mc = mc.gen_mc(
                     distribution='gauss', 
                     n_pts=n_pts, 
+                    cols=cols,
+                    vrad=[100, 120], 
+                    vtan=[1, 150],  
+                    rad=[450, 850])
+
+    mc.plot_mc_simple(mc_df=df_mc,
+                    extra_info=regressor_type+name_add+equal_label, 
                     show=True, 
-                    cols=
+                    cols=cols,
+                    n_bins=n_bins,
+                    regressor_type=regressor_type,
                     regressor_file=regressor_file)
-
-    '''
-    vrad=[100.0, 120.0], vtan=[1.0, 160.0], rad=[600.0, 700.0], extra_info='mass_total', distribution='flat', show=False,
-                n_pts=1000, n_bins=15, regressor_type='random_forest', regressor_file=None, cols=['Vrad_norm', 'R', 'Vtan_norm']
-
-    '''
-
-
 

@@ -22,6 +22,18 @@ import numpy as np
 import read_files as rf
 import tools as t
 
+# TODO : IMPLEMENT THIS CHECK ON THE DATA! Transform the data when possible for correct normalization
+'''
+    SKEWED DISTRIBUTION
+    from scipy import stats
+
+    crim_boxcox = stats.boxcox(df[])[0]
+    crim_log = np.log(df[])[0]
+
+    Check the skewness out with 
+    crim.skew()
+'''
+
 
 def rescale_data(data=None, mass_norm=1.0e+12, r_norm=1000.0):
 
@@ -59,20 +71,31 @@ def equal_number_per_bin(data=None, n_bins=10, bin_col='Mlog'):
     for i in range(1, n_bins-1):
         bins[i] = bin_size * i
 
-    print(bins)
-
     new_data = data[data[bin_col] > bins[n_bins-2]]
     n_sample = len(new_data)
 
     for i in range(1, n_bins-1):
         this_data = data[data[bin_col] < bins[n_bins-i-1]] 
         this_data = this_data[this_data[bin_col] > bins[n_bins-i-2]]
-        this_data = this_data.sample(n=n_sample)
+
+        if len(this_data) > n_sample:
+            this_data = this_data.sample(n=n_sample)
+
         new_data = pd.concat([new_data, this_data])
 
     print('NewData: ', len(new_data))
 
     return new_data
+
+def do_pca(data=None, pca_percent=0.9, pca_cols=['R', 'Vrad', 'Vtan']):
+    # Do a PCA to check the data
+    pca_cols = ['R','Vrad', 'Vtan'] #, 'AngMom', 'Energy'] #, l1, l2, l3, dens]
+    data_pca = t.data_pca(data=data, columns=pca_cols, pca_percent=pca_percent)
+    print('PCA at ', pca_percent, ' n_components: ', len(data_pca.columns), ' n_original: ', len(all_columns))
+    print(data_pca.info())
+    print(data_pca.head())
+
+    return data_pca
 
 
 def radial_velocity_binning(use_simu=None, data=None, vrad_max=-10.0, vrad_min=-120.0, 

@@ -5,11 +5,18 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 import data_visualization as dv
-import mc_datagen as mc
+import montecarlo as mc
 
 #mc.montecarlo(distribution='gauss')
 
+vrad=[100, 120]
+rad=[550, 450]
 
+cols=['R', 'Vrad']
+mc.gen_mc(cols=cols, rad=rad, vrad=vrad)
+
+
+'''
 data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
 
 mass_norm = 1.0e+12
@@ -24,7 +31,6 @@ data_new = dv.equal_number_per_bin(data=data, bin_col='Mlog', n_bins=n_bins)
 
 print(data_new.head())
 
-'''
 vrad_max = -1.0
 data = data[data['Vrad'] < vrad_max]
 
