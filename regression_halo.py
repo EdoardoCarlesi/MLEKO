@@ -84,16 +84,16 @@ if name_add == '_rs':
 
 # Set some parameters for the random forest and gradient boosted trees
 boot = True
-n_estimators = 90
+n_estimators = 150
 
 # Make it high for random forest, small for gradient boosting
-max_depth = 40
-max_samples = 200
+max_depth = 30
+max_samples = 500
 max_features = 3
 min_samples_split = 5
 min_samples_leaf = 3
 n_jobs = 2
-n_bins = 20
+n_bins = 16
 test_size = 0.3
 
 data = data[data['Vrad'] < vrad_max]
@@ -123,7 +123,7 @@ data['Vtot'] = np.sqrt(data['Vtan'].apply(lambda x: x*x) + data['Vrad'].apply(la
 data['Ekin'] = 0.5 * data['Vtot'].apply(lambda x: x*x)
 
 equal_label = ''
-data = dv.equal_number_per_bin(data=data, bin_col='Mlog', n_bins=10); equal_label = '_EQbin'
+#data = dv.equal_number_per_bin(data=data, bin_col='Mlog', n_bins=10); equal_label = '_EQbin'
 
 #data['denslog'] = np.log10(data['dens_128'])
 #data[l_tot] = data[l1] + data[l2] + data[l3]
@@ -138,11 +138,11 @@ regressor_type = 'linear'
 
 # Regression type, feature selection and target variable
 #train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
+train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
 
 #train_cols = ['R', 'Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
-train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
@@ -216,19 +216,16 @@ except:
 print('Train size: ', len(X_train))
 print('Test size: ', len(X_test))
 
+'''
 scaler = MinMaxScaler()
 #scaler = StandardScaler()
-
 # This only optimizes the parameters to perform the scaling later on
 scaler.fit(X_train)
-
 #X_train = scaler.transform(X_train)
 #X_test = scaler.transform(X_test)
+'''
 
 regressor.fit(X_train, y_train)
-
-print('X TEST: ')
-print(X_test)
 predictions = regressor.predict(X_test)
 
 mae = metrics.mean_absolute_error(y_test, predictions)
@@ -322,27 +319,32 @@ plt.savefig(file_output_ratio)
 plt.clf()
 plt.cla()
 
-regressor_file = 'output/regressor_' + regressor_type + equal_label + name_add + '_model.pkl'
+regressor_file = 'output/regressor_' + regressor_type + '_' + train_type + equal_label + name_add + '_model.pkl'
 print('Saving model to: ', regressor_file)
 pickle.dump(regressor, open(regressor_file, 'wb'))
 
 if do_mc == True:
-    n_pts=1000 
+    print('Montecarlo methods...')
+
+    n_pts=10000
     #cols=['Vrad', 'R', 'Vtan']
+
     cols=train_cols
     df_mc = mc.gen_mc(
                     distribution='gauss', 
                     n_pts=n_pts, 
                     cols=cols,
                     vrad=[100, 120], 
-                    vtan=[1, 150],  
-                    rad=[450, 850])
+                    rad=[450, 850],
+                    vtan=[1, 150]) 
 
     mc.plot_mc_simple(mc_df=df_mc,
                     extra_info=regressor_type+name_add+equal_label, 
                     show=True, 
                     cols=cols,
                     n_bins=n_bins,
+                    train_type=train_type,
                     regressor_type=regressor_type,
                     regressor_file=regressor_file)
 
+    print('Done.')

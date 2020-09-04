@@ -10,10 +10,29 @@ import montecarlo as mc
 #mc.montecarlo(distribution='gauss')
 
 vrad=[100, 120]
-rad=[550, 450]
+vtan=[1, 150]
+rad=[450, 550]
 
-cols=['R', 'Vrad']
-mc.gen_mc(cols=cols, rad=rad, vrad=vrad)
+cols=['Vrad', 'R', 'Vtan']
+mc_df = mc.gen_mc(cols=cols, vrad=vrad, rad=rad, vtan=vtan, n_pts=1000)
+
+regressor0 = 'output/regressor_linear_mass_total_rs_model.pkl'
+regressor1 = 'output/regressor_linear_mass_ratio_rs_model.pkl'
+
+mc.plot_mc_double(
+                    show=True,
+                    extra_info='mw_m31', 
+                    regressor_type='linear',
+                    regressor_file0=regressor0,
+                    regressor_file1=regressor1,
+                    cols=cols,
+                    mc_df=mc_df
+                    )
+
+
+#def plot_mc_double(extra_info='mass_total', distribution='gauss', show=False, n_pts=1000, n_bins=15,
+#        regressor_type='random_forest', regressor_file0=None, regressor_file1=None, cols=None, mc_df=None):
+
 
 
 '''
