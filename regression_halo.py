@@ -54,6 +54,8 @@ l_tot = 'l_tot_' + str(grid)
 data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
 data['Mlog'] = np.log10(data['Mtot']/mass_norm)
+data['M_MW_log'] = np.log10(data['M_MW']/mass_norm)
+data['M_M31_log'] = np.log10(data['M_M31']/mass_norm)
 
 # Best parameter set SmallBox
 if name_add == '_sb':
@@ -87,10 +89,10 @@ boot = True
 n_estimators = 150
 
 # Make it high for random forest, small for gradient boosting
-max_depth = 30
+max_depth = 8
 max_samples = 500
 max_features = 3
-min_samples_split = 5
+min_samples_split = 2
 min_samples_leaf = 3
 n_jobs = 2
 n_bins = 16
@@ -117,8 +119,8 @@ except:
 
 # Do some data normalization
 #data['R'] = data['R'] / r_norm
-#data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
-#data['Vtan'] = np.log(data['Vtan'] / 100.0)
+data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
+data['Vtan'] = np.log(data['Vtan'] / 100.0)
 data['Vtot'] = np.sqrt(data['Vtan'].apply(lambda x: x*x) + data['Vrad'].apply(lambda x: x*x))
 data['Ekin'] = 0.5 * data['Vtot'].apply(lambda x: x*x)
 
@@ -132,22 +134,25 @@ equal_label = ''
 #sns.lmplot(x=dens, y=l_tot, data=data)
 
 #regressor_type = 'decision_tree'
-#regressor_type = 'random_forest'
+regressor_type = 'random_forest'
 #regressor_type = 'gradient_boost'
-regressor_type = 'linear'
+#regressor_type = 'linear'
 
 # Regression type, feature selection and target variable
 #train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
-train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
+
+#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'M_MW_log'; train_type = 'mass_m31'
+#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'M_M31_log'; train_type = 'mass_mw'
 
 #train_cols = ['R', 'Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan', 'Energy']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
-#train_cols = ['R', 'Vrad']; test_col = 'Vtan'; train_type = 'vel_tan'
-#train_cols = ['R', 'Vrad', 'Mtot']; test_col = 'Vtan'; train_type = 'vel_tan'
+#train_cols = ['Vrad', 'R']; test_col = 'Vtan'; train_type = 'vel_tan'
+train_cols = ['Vrad', 'R', 'Mlog']; test_col = 'Vtan'; train_type = 'vel_tan'
 
 base_slope = np.polyfit(data[train_cols[0]], data[test_col], 1)
 print('BaseSlope: ', base_slope)
@@ -256,6 +261,14 @@ elif train_type == 'vel_rad':
 elif train_type == 'vel_tan':
     cols = ['V_tan_true', 'V_tan_pred']
 
+elif train_type == 'mass_m31':
+    cols = ['M31_true', 'M31_pred']
+
+elif train_type == 'mass_mw':
+    cols = ['MW_true', 'MW_pred']
+
+
+
 data = pd.DataFrame() 
 data[cols[0]] = y_test
 data[cols[1]] = predictions
@@ -330,7 +343,18 @@ if do_mc == True:
     #cols=['Vrad', 'R', 'Vtan']
 
     cols=train_cols
-    df_mc = mc.gen_mc(
+
+    if train_type == 'vel_tan':
+        vrad = np.log10([1.00, 1.20])
+        df_mc = mc.gen_mc(
+                    distribution='gauss', 
+                    n_pts=n_pts, 
+                    cols=cols,
+                    vrad=vrad, 
+                    rad=[450, 650],
+                    mtot=[0.1, 0.7]) 
+    else:
+        df_mc = mc.gen_mc(
                     distribution='gauss', 
                     n_pts=n_pts, 
                     cols=cols,

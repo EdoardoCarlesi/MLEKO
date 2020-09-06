@@ -9,15 +9,18 @@ import montecarlo as mc
 
 #mc.montecarlo(distribution='gauss')
 
-vrad=[100, 120]
+vrad=[100, 220]
 vtan=[1, 150]
-rad=[450, 550]
+rad=[450, 650]
 
 cols=['Vrad', 'R', 'Vtan']
 mc_df = mc.gen_mc(cols=cols, vrad=vrad, rad=rad, vtan=vtan, n_pts=1000)
 
-regressor0 = 'output/regressor_linear_mass_total_rs_model.pkl'
-regressor1 = 'output/regressor_linear_mass_ratio_rs_model.pkl'
+#regressor0 = 'output/regressor_linear_mass_total_rs_model.pkl'
+#regressor1 = 'output/regressor_linear_mass_ratio_rs_model.pkl'
+
+regressor0 = 'output/regressor_gradient_boost_mass_mw_rs_model.pkl'
+regressor1 = 'output/regressor_gradient_boost_mass_m31_rs_model.pkl'
 
 mc.plot_mc_double(
                     show=True,
@@ -26,7 +29,8 @@ mc.plot_mc_double(
                     regressor_file0=regressor0,
                     regressor_file1=regressor1,
                     cols=cols,
-                    mc_df=mc_df
+                    mc_df=mc_df,
+                    mass_type='mass'
                     )
 
 
