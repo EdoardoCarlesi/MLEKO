@@ -143,8 +143,8 @@ regressor_type = 'random_forest'
 #train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
 
-#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'M_MW_log'; train_type = 'mass_m31'
-#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'M_M31_log'; train_type = 'mass_mw'
+train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'M_MW_log'; train_type = 'mass_mw'
+#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'M_M31_log'; train_type = 'mass_m31'
 
 #train_cols = ['R', 'Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R', 'Vrad', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
@@ -152,7 +152,7 @@ regressor_type = 'random_forest'
 #train_cols = ['R', 'Vrad', 'Vtan', 'Mtot']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
 #train_cols = ['Vrad', 'R']; test_col = 'Vtan'; train_type = 'vel_tan'
-train_cols = ['Vrad', 'R', 'Mlog']; test_col = 'Vtan'; train_type = 'vel_tan'
+#train_cols = ['Vrad', 'R', 'Mlog']; test_col = 'Vtan'; train_type = 'vel_tan'
 
 base_slope = np.polyfit(data[train_cols[0]], data[test_col], 1)
 print('BaseSlope: ', base_slope)

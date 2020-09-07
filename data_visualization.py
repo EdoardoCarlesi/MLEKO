@@ -162,6 +162,31 @@ def radial_velocity_binning(use_simu=None, data=None, vrad_max=-10.0, vrad_min=-
         plt.clf()
  
 
+def distribution_1D(data=None, cols=['M_MW', 'M_M31'], xlim=False):
+
+    if xlim == True:
+        plt.xlim(0, 500.0)
+        plt.xlim(-500.0, 190.0)
+    
+    col_str = '_'
+    for col in cols:
+        sns.distplot(data[col], label=col)
+        col_str = col_str + col
+        pct = np.percentile(data[col], [15, 50, 85])
+        print(col, ' percentiles: %.3f %.3f %3.f' % (10**pct[0], 10**pct[1], 10**pct[2]))
+
+    plt.legend()
+
+    file_out = 'output/distplot_compare_' + col_str + '.png'
+    plt.savefig(file_out)
+    plt.show(block=False)
+    plt.pause(4)
+    plt.close()
+    plt.clf()
+    plt.cla()
+
+
+
 def distributions_1D(data_lgf=None, data_ahf=None, data_rs=None, col='Mlog', xlim=False):
 
     if xlim == True:

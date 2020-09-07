@@ -120,7 +120,14 @@ def plot_mc_double(extra_info='mass_total', distribution='gauss', show=False, n_
     elif mass_type == 'mass':
         mmw = 10 ** pred0
         mm31 = 10 ** pred1
-    
+
+    pcts = [20, 50, 80]
+    pct_mw = np.percentile(mmw, pcts)
+    pct_m31 = np.percentile(mm31, pcts)
+
+    print('MW pcts: %.3f, %.3f, %.3f ' % (pct_mw[0], pct_mw[1], pct_mw[2]))
+    print('M31 pcts: %.3f, %.3f, %.3f ' % (pct_m31[0], pct_m31[1], pct_m31[2]))
+
     #title_perc = '%.3f %.3f' % (perc_mw[1], perc_m31[1]) 
 
     sns.distplot(mmw, bins=n_bins, color='blue') #, alpha=0.5)
