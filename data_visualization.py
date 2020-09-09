@@ -162,21 +162,45 @@ def radial_velocity_binning(use_simu=None, data=None, vrad_max=-10.0, vrad_min=-
         plt.clf()
  
 
-def distribution_1D(data=None, cols=['M_MW', 'M_M31'], xlim=False):
-
-    if xlim == True:
-        plt.xlim(0, 500.0)
-        plt.xlim(-500.0, 190.0)
+def mass_distribution_1D(data=None, cols=['M_MW', 'M_M31'], xlim=None, name_add='_'):
     
+    plt.figure(figsize=(5,5))
+    plt.xlim(0, xlim)
     col_str = '_'
     for col in cols:
-        sns.distplot(data[col], label=col)
+        sns.distplot(10 ** data[col], label=col)
         col_str = col_str + col
-        pct = np.percentile(data[col], [15, 50, 85])
-        print(col, ' percentiles: %.3f %.3f %3.f' % (10**pct[0], 10**pct[1], 10**pct[2]))
+        pct = np.percentile(data[col], [20, 50, 80])
+        print(col, ' percentiles: %.3f' % (10**pct[1]))
+        #print(col, ' percentiles: %.3f %.3f %.3f' % (10**pct[0], 10**pct[1], 10**pct[2]))
+        print(col, ' percentiles: %.3f %.3f' % (10**pct[0] -10**pct[1], 10**pct[2] - 10**pct[1]))
+
+    
+    plt.xlabel(r'$M [10^{12} h^{-1} M_{\odot}]$')
+    plt.legend()
+    plt.tight_layout()
+
+    file_out = 'output/distplot_compare' + col_str + name_add + '.png'
+    plt.savefig(file_out)
+
+    plt.show(block=False)
+    plt.pause(4)
+    plt.close()
+    plt.clf()
+    plt.cla()
+
+def vel_distribution_1D(data=None, col='Vtan'):
+
+    plt.xlim(0, 500.0)
+    
+    col_str = col
+    sns.distplot(data[col], label=col)
+    pct = np.percentile(data[col], [15, 50, 85])
+    print(col, ' percentiles: %.3f %.3f %3.f' % (10**pct[0], 10**pct[1], 10**pct[2]))
 
     plt.legend()
-
+    
+    plt.xlabel('r$v [km s^{-1}]$')
     file_out = 'output/distplot_compare_' + col_str + '.png'
     plt.savefig(file_out)
     plt.show(block=False)
@@ -184,6 +208,8 @@ def distribution_1D(data=None, cols=['M_MW', 'M_M31'], xlim=False):
     plt.close()
     plt.clf()
     plt.cla()
+
+
 
 
 

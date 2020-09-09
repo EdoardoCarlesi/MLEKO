@@ -46,14 +46,22 @@ def gen_mc(distribution='gauss', cols=None, n_pts=1000, sanity_check=False, **kw
 
 
 def plot_mc_simple(extra_info='mass_total', distribution='gauss', show=False, n_pts=1000, n_bins=15, 
-        regressor_type='random_forest', regressor_file=None, cols=None, mc_df=None, train_type='mass_total'):
+        regressor_type='random_forest', regressor_file=None, cols=None, mc_df=None, train_type='mass_total', title_add='Mtot'):
 
     regressor = pickle.load(open(regressor_file, 'rb'))
     print('Loading regression model from: ', regressor_file)
-
+    
     mc_df = mc_df.dropna()
     X_mc = mc_df[cols]
-    predict_mc = regressor.predict(X_mc)
+
+    if train_type == 'vel_tan':
+        v_max = 500.0
+        v_max_log = np.log10(v_max/100.0)
+        X_mc['Vtan_new'] = regressor.predict(X_mc)
+        X_mc = X_mc[X_mc['Vtan_new'] < v_max_log]
+        predict_mc = X_mc['Vtan_new'].values
+    else:
+        predict_mc = regressor.predict(X_mc)
 
     if train_type == 'mass_total' or train_type == 'mass_m31' or train_type == 'mass_mw':
         mass_mc = 10**predict_mc
@@ -64,19 +72,20 @@ def plot_mc_simple(extra_info='mass_total', distribution='gauss', show=False, n_
     elif train_type == 'vel_tan':
         mass_mc = 10**(predict_mc + 2.0)
         plt.xlabel(r'$V_{tan}$')
+        plt.xlim(-10, v_max)
     else:
         print('WARNING! train_type has not been defined correctly. ')
 
     percs = np.percentile(mass_mc, [20, 50, 80])
-    print('Percentiles: ', percs) 
-    
-    title_perc = '%.2f %.2f %.2f' % (percs[0], percs[1], percs[2])
+    print('Percentiles: ', percs)
+    print(percs[1], percs[2] - percs[1], percs[0] - percs[1])
 
+    #title_perc = '%.2f %.2f %.2f' % (percs[0], percs[1], percs[2])
     #plt.rcParams.update({"text.usetex": True})
     
     sns.distplot(mass_mc, bins=n_bins)
 
-    title = 'MC Mtot ' + regressor_type + ' pct ' + title_perc
+    title = 'MC ' + title_add + ': ' + regressor_type #+ ' pct ' + title_perc
     plt.title(title)
     out_name = 'output/montecarlo_' + regressor_type + extra_info + '.png'
     plt.tight_layout()
@@ -99,6 +108,8 @@ def plot_mc_double(extra_info='mass_total', distribution='gauss', show=False, n_
 
     mc_df = mc_df.dropna()
     X_mc = mc_df[cols]
+
+    data = pd.DataFrame()
 
     # Total mass / MW
     pred0 = regressor0.predict(X_mc)
@@ -133,7 +144,7 @@ def plot_mc_double(extra_info='mass_total', distribution='gauss', show=False, n_
     sns.distplot(mmw, bins=n_bins, color='blue') #, alpha=0.5)
     sns.distplot(mm31, bins=n_bins, color='red')
     plt.xlabel(r'$10^{12} M_{\odot}$')
-    title = 'MC Mtot ' + regressor_type #+ ' pct ' + title_perc
+    title = 'MC ' + regressor_type #+ ' pct ' + title_perc
     plt.title(title)
     out_name = 'output/montecarlo_' + regressor_type + extra_info + '.png'
     plt.tight_layout()
@@ -143,6 +154,5 @@ def plot_mc_double(extra_info='mass_total', distribution='gauss', show=False, n_
         plt.show(block=False)
         plt.pause(4)
         plt.close()
-
 
 
