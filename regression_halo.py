@@ -148,30 +148,30 @@ regressor_type = 'linear'
 #regressor_type = 'gradient_boost'
 
 # Regression type, feature selection and target variable
-#train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R']; pred_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; pred_col = 'Mlog'; train_type = 'mass_total'
 
-#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'M_MW_log'; train_type = 'mass_mw'
-#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'M_M31_log'; train_type = 'mass_m31'
+#train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'M_MW_log'; train_type = 'mass_mw'
+#train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'M_M31_log'; train_type = 'mass_m31'
 
-#train_cols = ['Vrad', 'R', 'Vtan']; test_col = 'Mratio'; train_type = 'mass_ratio'
+#train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'Mratio'; train_type = 'mass_ratio'
 
-train_cols = ['Vrad', 'R', 'Mlog']; test_col = 'Vtan'; train_type = 'vel_tan'
-#train_cols = ['Vrad', 'R']; test_col = 'Vtan'; train_type = 'vel_tan'
+train_cols = ['Vrad', 'R', 'Mlog']; pred_col = 'Vtan'; train_type = 'vel_tan'
+#train_cols = ['Vrad', 'R']; pred_col = 'Vtan'; train_type = 'vel_tan'
 
-base_slope = np.polyfit(data[train_cols[0]], data[test_col], 1)
+base_slope = np.polyfit(data[train_cols[0]], data[pred_col], 1)
 print('BaseSlope: ', base_slope)
 
 new_col = 'M_LinFit'
 data[new_col] = data[train_cols[0]].apply(lambda x: base_slope[0] * x + base_slope[1])
 
 #print(data[new_col])
-#print(data[test_col])
-#sns.scatterplot(data[new_col], data[test_col])
+#print(data[pred_col])
+#sns.scatterplot(data[new_col], data[pred_col])
 #plt.show()
 
-base_result_slope = np.polyfit(data[test_col], data[new_col], 1)
+base_result_slope = np.polyfit(data[pred_col], data[new_col], 1)
 print('ResultSlope: ', base_result_slope)
 
 # Select the regressor type
@@ -207,7 +207,7 @@ reg_name = regressor_type + '_' + train_type
 
 # Select the features for the training and test set
 X = data[train_cols]
-y = data[test_col]
+y = data[pred_col]
 
 try:
     z= data['Mlog_TA']
@@ -368,14 +368,14 @@ if do_mc == True:
                     vrad=vrad, 
                     rad=[450, 550],
                     vtan=vtan) 
-    name_add = test_col 
+    name_add = pred_col 
     mc.plot_mc_simple(mc_df=df_mc,
                     extra_info=name_add+equal_label, 
                     show=True, 
                     cols=cols,
                     n_bins=n_bins,
                     train_type=train_type,
-                    title_add=test_col,
+                    title_add=pred_col,
                     regressor_type=regressor_type,
                     regressor_file=regressor_file)
 

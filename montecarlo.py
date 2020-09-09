@@ -140,19 +140,40 @@ def plot_mc_double(extra_info='mass_total', distribution='gauss', show=False, n_
     print('M31 pcts: %.3f, %.3f, %.3f ' % (pct_m31[0], pct_m31[1], pct_m31[2]))
 
     #title_perc = '%.3f %.3f' % (perc_mw[1], perc_m31[1]) 
-
-    sns.distplot(mmw, bins=n_bins, color='blue') #, alpha=0.5)
-    sns.distplot(mm31, bins=n_bins, color='red')
+    
+    sns.distplot(mmw, bins=n_bins, color='blue', label='MW') #, alpha=0.5)
+    sns.distplot(mm31, bins=n_bins, color='red', label='M31')
+    plt.xlim(0.0, 2.5)
     plt.xlabel(r'$10^{12} M_{\odot}$')
     title = 'MC ' + regressor_type #+ ' pct ' + title_perc
     plt.title(title)
+    plt.legend()
     out_name = 'output/montecarlo_' + regressor_type + extra_info + '.png'
     plt.tight_layout()
+    plt.savefig(out_name)
+    plt.clf()
+    plt.cla()
+
+    x = [0.0, 3.0]
+    #sns.color_palette("rocket") #, as_cmap=True)
+    sns.kdeplot(mm31, mmw, bins=100, levels=6, shade_lowest=False, color='blue', shade=True) #, cbar=True) #fill=True, cbar=True) #, palette="hls")
+    plt.plot(x, x, color='red')
+    #sns.kdeplot(mm31, mmw, levels=5, fill=True, cmap="mako", thresh=0.1) #fill=True, cbar=True) #, palette="hls")
+    plt.xlim(0.25, 2.2)
+    plt.ylim(0.25, 2.2)
+    plt.title('M31 - MW masses')
+    plt.xlabel(r'$M_{M31}  [10^{12} M_{\odot}]$')
+    plt.ylabel(r'$M_{MW}  [10^{12} M_{\odot}]$')
+    plt.tight_layout()
+
+    out_name = 'output/montecarlo_kde_' + regressor_type + extra_info + '.png'
     plt.savefig(out_name)
 
     if show == True:
         plt.show(block=False)
         plt.pause(4)
         plt.close()
+        plt.clf()
+        plt.cla()
 
 
