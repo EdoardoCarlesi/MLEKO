@@ -46,22 +46,27 @@ def read_lg_lgf(TA=False):
 '''
     Read all the fullbox LG data for each box, without VWeb information
 '''
-def read_lg_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox', TA=False):
+def read_lg_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox', TA=False, radii=False):
 
     if TA == True:
         data_ta = file_base + '_TA.csv'
         data = pd.read_csv(data_ta)
 
     else:
-        data_00 = file_base + '_00.csv'
+        if radii == True:
+            extension = '_radii.csv'
+        else:
+            extension = '.csv'
+
+        data_00 = file_base + '_00' + extension
         train_00 = pd.read_csv(data_00)
-        data_01 = file_base + '_01.csv'
+        data_01 = file_base + '_01' + extension
         train_01 = pd.read_csv(data_01)
-        data_02 = file_base + '_02.csv'
+        data_02 = file_base + '_02' + extension
         train_02 = pd.read_csv(data_02)
-        data_03 = file_base + '_03.csv'
+        data_03 = file_base + '_03' + extension
         train_03 = pd.read_csv(data_03)
-        data_04 = file_base + '_04.csv'
+        data_04 = file_base + '_04' + extension
         train_04 = pd.read_csv(data_04)
 
         data = pd.concat([train_00, train_01, train_02, train_03, train_04])

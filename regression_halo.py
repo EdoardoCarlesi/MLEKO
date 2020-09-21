@@ -31,8 +31,10 @@ def ta_mass(r, v):
 
 sns.set_style('whitegrid')
 
+file_new_fb = '/home/edoardo/CLUES/PyRCODIO/output/lg_fb_new'
 #data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
-data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
+#data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
+data = rf.read_lg_fullbox(file_base=file_new_fb, TA=False, radii=True); name_add = '_new'
 #data = rf.read_lg_rs_fullbox(files=[0, 10]); name_add = '_rs'
 #data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
 
@@ -79,7 +81,12 @@ all_v = data['Vrad'].values
 all_tam = np.zeros((len(all_r)))
 
 data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
-data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
+
+try:
+    data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
+except:
+    print('No timing argument')
+
 #data['Vtan'] = np.log(data['Vtan'] / 100.0)
 #data['denslog'] = np.log10(data['dens_128'])
 #data[l_tot] = data[l1] + data[l2] + data[l3]
@@ -104,8 +111,8 @@ regressor_type = 'random_forest'
 #train_cols = ['R','Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R','Vrad', 'M_MW']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
-train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
+train_cols = ['R','Vrad', 'Vtan', 'R_5000.0']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['M_M31', 'M_MW', 'R', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
@@ -178,12 +185,16 @@ print(data_pca.head())
 # Select the features for the training and test set
 X = data[train_cols]
 y = data[test_col]
-z = data['Mlog_TA']
+
+try:
+    z = data['Mlog_TA']
+    X_train, X_test, z_train, z_test = train_test_split(X, z, test_size = test_size, random_state = 42)
+except:
+    'No timing argument'
 
 print('Total size: ', X.count())
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = 42)
-X_train, X_test, z_train, z_test = train_test_split(X, z, test_size = test_size, random_state = 42)
 
 print('Train size: ', len(X_train))
 print('Test size: ', len(X_test))
@@ -205,11 +216,15 @@ msq = metrics.mean_squared_error(y_test, predictions)
 mape = t.MAPE(y_test, predictions)
 
 slope = np.polyfit(y_test, predictions, 1)
-slope_ta = np.polyfit(z_test, predictions, 1)
-slope_ta_pred = np.polyfit(z_test, y_test, 1)
 
-print('Slope TA: ', slope_ta)
-print('Slope TA pred: ', slope_ta_pred)
+try:
+    slope_ta = np.polyfit(z_test, predictions, 1)
+    slope_ta_pred = np.polyfit(z_test, y_test, 1)
+    print('Slope TA: ', slope_ta)
+    print('Slope TA pred: ', slope_ta_pred)
+except:
+    'No timing argument'
+
 
 if train_type == 'mass_total':
     cols = ['M_tot_true', 'M_tot_pred', 'M_tot_TA']
