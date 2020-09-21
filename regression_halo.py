@@ -8,7 +8,6 @@
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
@@ -22,26 +21,21 @@ import seaborn as sns
 import numpy as np
 import read_files as rf
 import tools as t
-import pickle
 
-import data_visualization as dv
-import montecarlo as mc
+
+def ta_mass(r, v):
+    t0 = 14.75
+    tam = ta.mass_estimate(r=r, v=v, t=t0)
+    return tam
+
 
 sns.set_style('whitegrid')
 
-<<<<<<< HEAD
 file_new_fb = '/home/edoardo/CLUES/PyRCODIO/output/lg_fb_new'
 #data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
 #data = rf.read_lg_fullbox(TA=True); name_add = '_ahf'
 data = rf.read_lg_fullbox(file_base=file_new_fb, TA=False, radii=True); name_add = '_new'
 #data = rf.read_lg_rs_fullbox(files=[0, 10]); name_add = '_rs'
-=======
-do_mc = True
-#data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
-
-data = rf.read_lg_fullbox(TA=True); name_add = '_sb'
-#data = rf.read_lg_rs_fullbox(files=[0, 20]); name_add = '_rs'
->>>>>>> ac676f9008fd812a78762c327614a92e07204765
 #data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
 
 all_columns = ['M_M31', 'M_MW', 'R', 'Vrad', 'Vtan', 'Nsub_M31', 'Nsub_MW', 'Npart_M31', 'Npart_MW', 'Vmax_MW', 'Vmax_M31', 'lambda_MW',
@@ -51,70 +45,24 @@ all_columns = ['M_M31', 'M_MW', 'R', 'Vrad', 'Vtan', 'Nsub_M31', 'Nsub_MW', 'Npa
 print(data.info())
 
 grid = 128
+mass_norm = 1.0e+12
 
 l1 = 'l1_' + str(grid); l2 = 'l2_' + str(grid); l3 = 'l3_' + str(grid)
 dens = 'dens_' + str(grid)
 l_tot = 'l_tot_' + str(grid)
 
-# Best parameter set SmallBox
-if name_add == '_sb':
-    mratio_max = 5.0
-    vrad_max = -10.0
-    vtan_max = 1000.0
-    r_max = 1400.0
-    r_min = 400.0
-    mass_min = 5.0e+11
-
-# Best parameter set LGF
-if name_add == '_lgf':
-    mratio_max = 60.0
-    vrad_max = -1.0
-    vtan_max = 1000.0
-    r_max = 1500.0
-    r_min = 300.0
-    mass_min = 5.0e+11
-
-# Best parameter set RS
-if name_add == '_rs':
-    mratio_max = 5.0
-    vrad_max = -10.0
-    vtan_max = 500.0
-    r_max = 1400.0
-    r_min = 500.0
-    mass_min = 5.0e+11
-
-# Set some parameters for the random forest and gradient boosted trees
-boot = False
-
-# n_estimators = 200 # RandomForest
-n_estimators = 250
-
-# Make it high for random forest, small for gradient boosting
-#max_depth = 50 # Decision Tree
-#max_depth = 120 # Random Forest
-max_depth = 10 # Gradient boost
-
-max_samples = 500
-max_features = 2
-min_samples_split = 5
-min_samples_leaf = 5
-n_jobs = 2
-n_bins = 20
-test_size = 0.2
-
-# Normalization factors
-mass_norm = 1.0e+12
-vel_norm = 100.0
-r_norm = 1000.0
-
 # Add some useful combinations to the dataframe
 data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
 data['Mlog'] = np.log10(data['Mtot']/mass_norm)
-data['M_MW_log'] = np.log10(data['M_MW']/mass_norm)
-data['M_M31_log'] = np.log10(data['M_M31']/mass_norm)
 
-# Refine selection
+mratio_max = 5.0
+vrad_max = -1.0
+vtan_max = 1000.0
+r_max = 1200.0
+r_min = 400.0
+mass_min = 5.0e+11
+
 data = data[data['Vrad'] < vrad_max]
 print('Ndata after Vrad cut: ', len(data))
 data = data[data['R'] < r_max]
@@ -123,28 +71,15 @@ data = data[data['R'] > r_min]
 print('Ndata after Rmin cut: ', len(data))
 data = data[data['Vtan'] < vtan_max]
 print('Ndata after Vtan cut: ', len(data))
-data = data[data['M_MW'] > mass_min]
-print('Ndata after M_MW cut: ', len(data))
 data = data[data['Mratio'] < mratio_max]
 print('Ndata after Mratio cut: ', len(data))
+data = data[data['M_MW'] > mass_min]
+print('Ndata after M_MW cut: ', len(data))
 
-try:
-    data['Mlog_TA'] = np.log10(data['M_TA'] / mass_norm)
-except:
-    print('No timing argument mass')
+all_r = data['R'].values
+all_v = data['Vrad'].values
+all_tam = np.zeros((len(all_r)))
 
-
-# Do some data normalization
-#data['R'] = data['R'] / r_norm
-data['Vrad'] = np.log10(-data['Vrad'] / vel_norm)
-data['Vtan'] = np.log(data['Vtan'] / vel_norm)
-data['Vtot'] = np.sqrt(data['Vtan'].apply(lambda x: x*x) + data['Vrad'].apply(lambda x: x*x))
-data['Ekin'] = 0.5 * data['Vtot'].apply(lambda x: x*x)
-
-equal_label = ''
-#data = dv.equal_number_per_bin(data=data, bin_col='Mlog', n_bins=10); equal_label = '_EQbin'
-
-<<<<<<< HEAD
 data['Vrad'] = np.log10(-data['Vrad'] / 100.0)
 
 try:
@@ -153,21 +88,26 @@ except:
     print('No timing argument')
 
 #data['Vtan'] = np.log(data['Vtan'] / 100.0)
-=======
->>>>>>> ac676f9008fd812a78762c327614a92e07204765
 #data['denslog'] = np.log10(data['dens_128'])
 #data[l_tot] = data[l1] + data[l2] + data[l3]
 #sns.scatterplot(x='Mlog', y='Vrad', data = data)
 #plt.show()
 #sns.lmplot(x=dens, y=l_tot, data=data)
 
-regressor_type = 'linear'
-#regressor_type = 'decision_tree'
-#regressor_type = 'random_forest'
+# Set some parameters for the random forest and gradient boosted trees
+n_estimators = 300
+max_depth = 4
+max_samples = 30
+min_samples_split = 10
+boot = True
+n_jobs = 2
+test_size = 0.2
+
+regressor_type = 'random_forest'
 #regressor_type = 'gradient_boost'
+#regressor_type = 'linear'
 
 # Regression type, feature selection and target variable
-<<<<<<< HEAD
 #train_cols = ['R','Vrad']; test_col = 'Mratio'; train_type = 'mass_ratio'
 #train_cols = ['R','Vrad', 'M_MW']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
@@ -194,68 +134,56 @@ train_cols = ['R','Vrad', 'Vtan', 'R_5000.0']; test_col = 'Mlog'; train_type = '
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
 base_slope = np.polyfit(data[train_cols[0]], data[test_col], 1)
-=======
-#train_cols = ['Vrad', 'R']; pred_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; pred_col = 'Mlog'; train_type = 'mass_total'
-
-#train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'M_MW_log'; train_type = 'mass_mw'
-#train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'M_M31_log'; train_type = 'mass_m31'
-
-#train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'Mratio'; train_type = 'mass_ratio'
-
-train_cols = ['Vrad', 'R', 'Mlog']; pred_col = 'Vtan'; train_type = 'vel_tan'
-#train_cols = ['Vrad', 'R']; pred_col = 'Vtan'; train_type = 'vel_tan'
-
-base_slope = np.polyfit(data[train_cols[0]], data[pred_col], 1)
->>>>>>> ac676f9008fd812a78762c327614a92e07204765
 print('BaseSlope: ', base_slope)
 
 new_col = 'M_LinFit'
 data[new_col] = data[train_cols[0]].apply(lambda x: base_slope[0] * x + base_slope[1])
 
 #print(data[new_col])
-#print(data[pred_col])
-#sns.scatterplot(data[new_col], data[pred_col])
+#print(data[test_col])
+#sns.scatterplot(data[new_col], data[test_col])
 #plt.show()
 
-base_result_slope = np.polyfit(data[pred_col], data[new_col], 1)
+base_result_slope = np.polyfit(data[test_col], data[new_col], 1)
 print('ResultSlope: ', base_result_slope)
 
 # Select the regressor type
 if regressor_type == 'random_forest':
-    regressor = RandomForestRegressor(
-                                        n_estimators=n_estimators, 
+    regressor = RandomForestRegressor(n_estimators=n_estimators, 
                                         max_depth=max_depth, 
-                                        max_features=max_features,
                                         min_samples_split=min_samples_split, 
-                                        min_samples_leaf=min_samples_leaf,
+                                        #criterion=criterion,
                                         bootstrap=boot,
                                         max_samples=max_samples,
                                         n_jobs=n_jobs)
 
 elif regressor_type == 'gradient_boost':
-    regressor = GradientBoostingRegressor(
-                                            n_estimators=n_estimators, 
-                                            max_depth=max_depth,
-                                            max_features=max_features,
-                                            min_samples_leaf=min_samples_leaf,
-                                            min_samples_split=min_samples_split)
+    regressor = GradientBoostingRegressor(n_estimators = n_estimators, 
+                                            max_depth = max_depth,
+                                            min_samples_split = min_samples_split)
 elif regressor_type == 'linear':
     regressor = LinearRegression()
 
-elif regressor_type == 'decision_tree':
-    regressor = DecisionTreeRegressor(
-                                            max_features=max_features,
-                                            min_samples_split=min_samples_split,
-                                            max_depth=max_depth
-                                    )
-
 reg_name = regressor_type + '_' + train_type
+
+#data['AngMom'] = data['AngMom'].apply(lambda x: np.log10(x))
+#data['AngMom'].hist(bins=100)
+#plt.show()
+
+'''
+# Do a PCA to check the data
+pca_percent = 0.9
+#pca_percent = None
+#pca_cols = all_columns
+pca_cols = ['R','Vrad', 'Vtan'] #, 'AngMom', 'Energy'] #, l1, l2, l3, dens]
+data_pca = t.data_pca(data=data, columns=pca_cols, pca_percent=pca_percent)
+print('PCA at ', pca_percent, ' n_components: ', len(data_pca.columns), ' n_original: ', len(all_columns))
+print(data_pca.info())
+print(data_pca.head())
+'''
 
 # Select the features for the training and test set
 X = data[train_cols]
-<<<<<<< HEAD
 y = data[test_col]
 
 try:
@@ -263,38 +191,22 @@ try:
     X_train, X_test, z_train, z_test = train_test_split(X, z, test_size = test_size, random_state = 42)
 except:
     'No timing argument'
-=======
-y = data[pred_col]
-
-try:
-    z= data['Mlog_TA']
-except:
-    print('No timing argument mass')
->>>>>>> ac676f9008fd812a78762c327614a92e07204765
 
 print('Total size: ', X.count())
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = test_size, random_state = 42)
-<<<<<<< HEAD
-=======
-
-try:
-    X_train, X_test, z_train, z_test = train_test_split(X, z, test_size = test_size, random_state = 42)
-except:
-    'No TA'
->>>>>>> ac676f9008fd812a78762c327614a92e07204765
 
 print('Train size: ', len(X_train))
 print('Test size: ', len(X_test))
 
-'''
 scaler = MinMaxScaler()
 #scaler = StandardScaler()
+
 # This only optimizes the parameters to perform the scaling later on
 scaler.fit(X_train)
+
 #X_train = scaler.transform(X_train)
 #X_test = scaler.transform(X_test)
-'''
 
 regressor.fit(X_train, y_train)
 predictions = regressor.predict(X_test)
@@ -311,14 +223,8 @@ try:
     print('Slope TA: ', slope_ta)
     print('Slope TA pred: ', slope_ta_pred)
 except:
-<<<<<<< HEAD
     'No timing argument'
 
-=======
-    print('No timing argument mass')
-
-col_ratio = 'pred_true_ratio'
->>>>>>> ac676f9008fd812a78762c327614a92e07204765
 
 if train_type == 'mass_total':
     cols = ['M_tot_true', 'M_tot_pred', 'M_tot_TA']
@@ -329,23 +235,12 @@ elif train_type == 'mass_ratio':
 elif train_type == 'vel_rad':
     cols = ['V_rad_true', 'V_rad_pred']
 
-elif train_type == 'vel_tan':
-    cols = ['V_tan_true', 'V_tan_pred']
-
-elif train_type == 'mass_m31':
-    cols = ['M31_true', 'M31_pred']
-
-elif train_type == 'mass_mw':
-    cols = ['MW_true', 'MW_pred']
-
-
 data = pd.DataFrame() 
 data[cols[0]] = y_test
 data[cols[1]] = predictions
-data[col_ratio] = np.log10(predictions / y_test)
 
 yy = []
-x = [data[cols[0]].min(), data[cols[0]].max()]
+x = [data[cols[0]].min(), data[cols[1]].max()]
 
 for xx in x:
     yy.append(slope[0] * xx + slope[1])
@@ -358,25 +253,17 @@ for feat in train_cols:
     feat_title = feat_title + '_' + feat
 
 reg_name = reg_name + feat_title
-title = 'Correlation' + feat_title + equal_label + ' slope= ' + '%5.3f' % slope[0]
+title = name_add + feat_title + ' slope= ' + '%5.3f' % slope[0]
 
-# Plot the density levels
 plt.figure(figsize=(5, 5))
 sns.kdeplot(data[cols[0]], data[cols[1]])
 sns.scatterplot(data[cols[0]], data[cols[1]]) #, n_levels = 4)
 sns.lineplot(x, x)
 sns.lineplot(x, yy)
 plt.title(title)
-plt.tight_layout()
-file_output ='output/' + reg_name + equal_label + name_add + '.png' 
 
-print('savefig to: ', file_output)
-plt.savefig(file_output)
-plt.clf()
-plt.cla()
 print('Slope: ', slope)
 
-# Make sure we don't stop the program if the regressor does not support feature importance
 try:
     importances = regressor.feature_importances_
     print('Feature importance:')
@@ -385,64 +272,10 @@ try:
 
 except:
     print('No feature importance')
+    
+#plt.scatterplot(y_test, predictions)
+plt.tight_layout()
 
-file_output_ratio ='output/ratio_' + reg_name + equal_label + name_add + '.png' 
-sns.distplot(data[col_ratio], bins=n_bins)
-
-data = data.dropna()
-med = np.median(data[col_ratio])
-std = np.std(data[col_ratio])
-title = cols[1] + '_' + cols[0] + ' med: ' + '%5.3f' % med + ', std: %5.3f' % std
-
-print('Ratio, median=', med, ' std=', std)
-print('Saving ratio to:', file_output_ratio, ' median: ', med, ' stddev: ', std)
-
-plt.title(title)
-plt.savefig(file_output_ratio)
-plt.clf()
-plt.cla()
-
-regressor_file = 'output/regressor_' + regressor_type + '_' + train_type + equal_label + name_add + '_model.pkl'
-print('Saving model to: ', regressor_file)
-pickle.dump(regressor, open(regressor_file, 'wb'))
-
-if do_mc == True:
-    print('Montecarlo methods...')
-
-    n_pts=10000
-    #cols=['Vrad', 'R', 'Vtan']
-
-    cols=train_cols
-
-    if train_type == 'vel_tan':
-        vrad = np.log10([1.00, 1.20])
-        mtot = np.log10([1.00, 5.00])
-        df_mc = mc.gen_mc(
-                    distribution='gauss', 
-                    n_pts=n_pts, 
-                    cols=cols,
-                    vrad=vrad, 
-                    rad=[450, 550],
-                    mtot=mtot) 
-    else:
-        vrad = np.log10([1.00, 1.20])
-        vtan = np.log10([0.01, 2.00])
-        df_mc = mc.gen_mc(
-                    distribution='gauss', 
-                    n_pts=n_pts, 
-                    cols=cols,
-                    vrad=vrad, 
-                    rad=[450, 550],
-                    vtan=vtan) 
-    name_add = pred_col 
-    mc.plot_mc_simple(mc_df=df_mc,
-                    extra_info=name_add+equal_label, 
-                    show=True, 
-                    cols=cols,
-                    n_bins=n_bins,
-                    train_type=train_type,
-                    title_add=pred_col,
-                    regressor_type=regressor_type,
-                    regressor_file=regressor_file)
-
-    print('Done.')
+file_output ='output/' + reg_name + name_add + '.png' 
+print('savefig to: ', file_output)
+plt.savefig(file_output)
