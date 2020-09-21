@@ -52,9 +52,12 @@ dens = 'dens_' + str(grid)
 l_tot = 'l_tot_' + str(grid)
 
 # Add some useful combinations to the dataframe
+data = data[data['R_5000.0'] > 0.0]
+
 data['Mtot'] = data['M_M31'] + data['M_MW']
 data['Mratio'] = data['M_M31'] / data['M_MW']
 data['Mlog'] = np.log10(data['Mtot']/mass_norm)
+data['R_5000.0'] = np.log10(data['R_5000.0']/mass_norm)
 
 mratio_max = 5.0
 vrad_max = -1.0
@@ -112,7 +115,8 @@ regressor_type = 'random_forest'
 #train_cols = ['R','Vrad', 'M_MW']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
 #train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
-train_cols = ['R','Vrad', 'Vtan', 'R_5000.0']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['R','Vrad', 'Vtan', 'R_5000.0']; test_col = 'Mlog'; train_type = 'mass_total'
+train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['M_M31', 'M_MW', 'R', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
