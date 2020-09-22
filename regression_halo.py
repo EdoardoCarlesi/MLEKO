@@ -98,11 +98,11 @@ except:
 #sns.lmplot(x=dens, y=l_tot, data=data)
 
 # Set some parameters for the random forest and gradient boosted trees
-n_estimators = 300
+n_estimators = 150
 max_depth = 4
 max_samples = 30
 min_samples_split = 10
-boot = True
+boot = False
 n_jobs = 2
 test_size = 0.2
 
@@ -115,8 +115,9 @@ regressor_type = 'random_forest'
 #train_cols = ['R','Vrad', 'M_MW']; test_col = 'Mratio'; train_type = 'mass_ratio'
 
 #train_cols = ['Vrad', 'R']; test_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['R','Vrad', 'Vtan', 'R_5000.0']; test_col = 'Mlog'; train_type = 'mass_total'
-train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['R','Vrad', 'R_6000.0']; test_col = 'Mlog'; train_type = 'mass_total'
+#train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'AngMom']; test_col = 'Mtot'; train_type = 'mass_total'
 #train_cols = ['M_M31', 'M_MW', 'R', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
@@ -133,7 +134,7 @@ train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['M_M31','M_MW', 'Vtan']; test_col = 'Mtot'; train_type = 'mass_total'
 
-#train_cols = ['Mtot','R', 'Vtan']; test_col = 'Vrad'; train_type = 'vel_rad'
+train_cols = ['R', 'Vrad', 'R_8000.0']; test_col = 'Vtan'; train_type = 'vel_rad'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_m31'
 #train_cols = ['R','Vrad', 'Vtan']; test_col = 'M_M31'; train_type = 'mass_mw'
 
