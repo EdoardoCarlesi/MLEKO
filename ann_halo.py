@@ -76,14 +76,14 @@ def build_net(n_input=None):
 
     #opt='adam'
     #opt = tf.keras.optimizers.SGD(lr=0.008)
-    #opt = tf.keras.optimizers.SGD(lr=0.1)
-    opt = tf.keras.optimizers.Adam(lr=0.02)
+    opt = tf.keras.optimizers.SGD(lr=0.001)
+    #opt = tf.keras.optimizers.Adam(lr=0.02)
 
     #regressor.compile(optimizer=opt, loss='mse', metrics=['mae'])
-    regressor.compile(optimizer=opt, loss='msle', metrics=['mae'])
+    #regressor.compile(optimizer=opt, loss='msle', metrics=['mae'])
     #regressor.compile(optimizer=opt, loss='mae', metrics=['mae'])
 
-    #regressor.compile(optimizer='adam', loss='mse', metrics=['mae'])
+    regressor.compile(optimizer='adam', loss='mse', metrics=['mae'])
     #regressor.compile(optimizer='rmsprop', loss='mse', metrics=['mae'], callbacks=[early_stop])
     #regressor.compile(optimizer='rmsprop', loss='msle', metrics=['mae', 'mse'])
     #print(regressor.optimizer.learning_rate)
@@ -134,7 +134,7 @@ data = t.filter_data(data=data, vrad_max=vrad_max, vtan_max=vtan_max, r_max=r_ma
 
 # Manual normalization of the most important data types
 #data = t.normalize_data(data=data)
-data = t.equal_number_per_bin(data=data, n_bins=5, bin_col='M_MW')
+data = t.equal_number_per_bin(data=data, n_bins=10, bin_col='M_M31')
 #data = t.normalize_data(data=data, mode='log')
 #data = t.normalize_data(data=data, mode='boxcox')
 #data = t.normalize_data(data=data, mode='lin')
@@ -198,8 +198,8 @@ n_input = len(train_cols)
 regressor, act_func = build_net(n_input=n_input)
 
 if trainANN == True:
-    n_epochs = 5
-    batch_size = 50
+    n_epochs = 20
+    batch_size = 100
 
     # Fit the regressor to the training data and save it
     regressor.fit(X_train, y_train, epochs=n_epochs, batch_size=batch_size)
@@ -227,9 +227,17 @@ if trainANN == True:
     data[cols[1]] = predictions
     data['ratio'] = np.log10(data[cols[1]] / data[cols[0]])
 
-    sns.kdeplot(data[cols[0]], data[cols[1]], n_levels = 5)
+    # Find the slope of true to 
     slope = np.polyfit(y_test, predictions, 1)
     print('Slope: ', slope)
+
+    x = [1, 5]
+    y = x * slope[0] + slope[1]
+    plt.xlim(0, 8)
+    plt.ylim(0, 6)
+    plt.plot(x, x, color='black')
+    plt.plot(x, y, color='red')
+    sns.kdeplot(data[cols[0]], data[cols[1]], n_levels = 5)
 
     add_name = '_' + act_func + '_' + file_type
 

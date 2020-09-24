@@ -138,13 +138,15 @@ def normalize_data(data=None, mode='boxcox', verbose=False):
         data['M_M31'] = np.log10(data['M_M31']/mass_norm)
 
     elif mode == 'lin':
-        data['Vrad'] = data['Vrad']/vel_norm
+        vel_norm = 500.0
+        data['Vrad'] = -data['Vrad']/vel_norm
         data['Vtan'] = data['Vtan']/vel_norm
         data['Mtot'] = data['Mtot']/mass_norm
-        data['M_MW'] = np.log10(data['M_MW']/mass_norm)
+        data['M_MW'] = data['M_MW']/mass_norm
         data['M_M31'] = data['M_M31']/mass_norm
 
     elif mode == 'mix2':
+        vel_norm = 1000.0
         data['Vrad'] = np.log10(-data['Vrad']/vel_norm)
         data['Vtan'] = np.log10( data['Vtan']/vel_norm)
         data['Mtot'] = data['Mtot']/mass_norm
