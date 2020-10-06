@@ -6,21 +6,8 @@
     https://github.com/EdoardoCarlesi/CluesML
 '''
 
-
-# TODO write a V-Web classifier !!!!!!!!!!!
-
-
-
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix
-
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import LogisticRegression
-from sklearn import metrics
+from mpl_toolkits.mplot3d import Axes3D
+from sklearn.cluster import KMeans
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -28,89 +15,37 @@ import seaborn as sns
 import numpy as np
 import tools as t
 
-sns.set_style('whitegrid')
-data_train_00 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_00.csv'
-train_00 = pd.read_csv(data_train_00)
-data_train_01 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_01.csv'
-train_01 = pd.read_csv(data_train_01)
-data_train_02 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_02.csv'
-train_02 = pd.read_csv(data_train_02)
-data_train_03 = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_03.csv'
-train_03 = pd.read_csv(data_train_03)
+file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
+web_file = 'vweb_00_10.000032.Vweb-csv'
+#web_file = 'vweb_00_10.000064.Vweb-csv'
+#web_file = 'vweb_25_15.000064.Vweb-csv'
+#web_file = 'vweb_01_10.000064.Vweb-csv'
+#web_file = 'vweb_00_10.000128.Vweb-csv'
 
-train = pd.concat([train_00, train_01, train_02, train_03])
+web_df = pd.read_csv(file_base + web_file)
+#print(web_df.head())
 
-data_test = '/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_04.csv'
-train['Mtot'] = train['M_M31'] + train['M_MW']
-train['Mratio'] = train['M_M31'] / train['M_MW']
+cols_select = ['l1', 'l2', 'l3']
 
-#print(train['Mratio'])
+web_ev_df = web_df[cols_select]
 
-train.drop(['sub_code', 'simu_code', 'Nsub_M31', 'Nsub_MW', 'Xc_LG', 'Yc_LG', 'Zc_LG'], axis=1, inplace=True)
-train.drop(['cNFW_MW', 'c_NFW_M31', 'Vmax_MW', 'Vmax_M31'], axis=1, inplace=True)
-train.drop(['Npart_MW', 'Npart_M31'], axis=1, inplace=True)
-train.drop(['lambda_MW', 'lambda_M31'], axis=1, inplace=True)
-print(train.info())
-print(train.head())
-#sns.pairplot(train)
+kmeans = KMeans(n_clusters = 4, n_init = 10)
+kmeans.fit(web_ev_df)
 
-#regressor = LinearRegression(); reg_name = 'linreg'
-#regressor = LogisticRegression(); reg_name = 'logreg'
-regressor = RandomForestRegressor(); reg_name = 'randomforest_reg'
+print(kmeans.cluster_centers_)
+print(type(kmeans.labels_))
+web_df['env'] = kmeans.labels_
+ntot = len(web_df)
 
-X = train.drop(['Mtot', 'M_MW', 'M_M31', 'Mratio'], axis=1)
-y = train['Mtot']
-
-print(X.head())
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state = 40)
-
-#scaler = MinMaxScaler()
-scaler = StandardScaler()
-
-# This only optimizes the parameters to perform the scaling later on
-scaler.fit(X_train)
-
-X_train = scaler.transform(X_train)
-X_test = scaler.transform(X_test)
-
-regressor.fit(X_train, y_train)
-predictions = regressor.predict(X_test)
-
-mae = metrics.mean_absolute_error(y_test, predictions)
-msq = metrics.mean_squared_error(y_test, predictions)
-mape = t.MAPE(y_test, predictions)
-
-print('MAE: ', mae/1.0e+12, ' MSQ: ', np.sqrt(msq)/1.0e+12, ' MAPE: ', np.mean(mape) )
-sns.scatterplot(y_test, predictions)
-
+for i in range(0, 4):
+    n = len(web_df[web_df['env'] == i]) 
+    print(n, ' perc: ', n/ntot)
 
 '''
-print(classification_report(y_test, pred))
-print(confusion_matrix(y_test, pred))
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(web_ev_df['l1'], web_ev_df['l2'], web_ev_df['l3'], c = kmeans.labels_)
 
-print('RANDOM FOREST')
-
-rforest = RandomForestClassifier(n_estimators = 200)
-rforest.fit(X_train, y_train)
-pred2 = rforest.predict(X_test)
-
-print(classification_report(y_test, pred2))
-print(confusion_matrix(y_test, pred2))
-
-
-scaler.fit(train.drop('TARGET CLASS', axis = 1))
-scaled_feat = scaler.transform(train.drop('TARGET CLASS', axis = 1))
-data_scaled = pd.DataFrame(scaled_feat, columns = train.columns[:-1])
-
-print(scaled_feat)
-
-print(data_scaled.head())
-
-pred = knn.predict(X_test)
-pred2 = logmod.predict(X_test)
-print(classification_report(y_test, pred))
-'''
 plt.show()
-
+'''
 
