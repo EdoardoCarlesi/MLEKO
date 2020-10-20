@@ -17,17 +17,24 @@ import numpy as np
 import tools as t
 
 
-def plot_vweb(data=None, fout=None, thresh=0.0, grid=64):
-    z_min = 48.0
-    z_max = 52.0
+def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
+    
+    z_min = box * 0.5 - thick
+    z_max = box * 0.5 + thick
 
     data = data[data['z'] > z_min]
     data = data[data['z'] < z_max]
 
-    shift = 50.0
+    shift = box * 0.5
     data['x'] = data['x'].apply(lambda x: x - shift)
     data['y'] = data['y'].apply(lambda x: x - shift)
-    
+
+    if box > 1e+4:
+        data['x'] = data['x'] / 1e+3
+        data['y'] = data['y'] / 1e+3
+        data['z'] = data['z'] / 1e+3
+        shift = shift / 1e+3
+
     voids = data[data['l1'] < thresh]
     sheet = data[(data['l2'] < thresh) & (data['l1'] > thresh)]
     filam = data[(data['l2'] > thresh) & (data['l3'] < thresh)]
@@ -41,6 +48,8 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64):
         size = 15
     elif grid == 128:
         size = 5
+    elif grid == 256:
+        size = 3
 
     print('Plotting web with lambda threshold ')
     # Plot the eigenvaule threshold based V-Web
@@ -52,6 +61,7 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64):
     plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
+
     plt.scatter(voids['x'], voids['y'], c='lightgrey', s=size, marker='s')
     plt.scatter(sheet['x'], sheet['y'], c='grey', s=size, marker='s')
     plt.scatter(filam['x'], filam['y'], c='black', s=size, marker='s')
@@ -70,7 +80,7 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64):
     plt.figure(figsize=(10, 10))
     plt.xlim([-shift, shift])
     plt.ylim([-shift, shift])
-    plt.title('$\log_{10}\Delta_m, k =$' + str(n_clusters), fontsize=fontsize)
+    plt.title('$\log_{10}\Delta_m', fontsize=fontsize)
     sns.scatterplot(data['x'], data['y'], hue=np.log10(data['dens']), marker='s', s=size*3, legend = False, palette=palette)
 
     # Override seaborn defaults
@@ -92,27 +102,46 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64):
     MAIN PROGRAM STARTS
 """
 
-plotStd = False
-plot3d = True
-plotKLV = False
-plotEVs = False
-plotLambdas = False
+# Program settings
+normalize = True
+
+plotStd = True
+plot3d = False
+plotKLV = True
+plotEVs = True
+plotLambdas = True
 
 file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
 #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
 #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
-web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+#web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
 
-#web_file = 'vweb_25_15.000064.Vweb-csv'; str_grid = '_grid64'
-#web_file = 'vweb_01_10.000064.Vweb-csv'
+#web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
+web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
+
+box = 500.0e+3; thick = 7.0e+3
+#box = 500.0; thick = 5.0
+#box = 100.0; thick = 2.0
 
 web_df = pd.read_csv(file_base + web_file)
+
+if normalize == True:
+    #norm = 1/1024.0 
+    norm = 1.0e-3   # kpc to Mpc
+    print('Norm: ', norm) 
+
+    web_df['l1'] = web_df['l1'] / norm
+    web_df['l2'] = web_df['l2'] / norm
+    web_df['l3'] = web_df['l3'] / norm
+
 
 if plotStd == True: 
 
     f_out = 'output/kmeans_oldvweb' + str_grid
-    for thresh in [0.0, 0.1, 0.2]:
-        plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid)
+    #norm = web_df['l1'].max()
+
+    for thresh in [0.0, 0.1]:
+        plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick)
 
 web_df['logdens'] = np.log10(web_df['dens'])
 #print(web_df.head())
@@ -135,15 +164,21 @@ centers = kmeans.cluster_centers_
 web_df['env'] = kmeans.labels_
 #ntot = len(web_df)
 
-if n_clusters == 4:
-    colors = ['lightgrey', 'grey', 'black', 'red']
-    envirs = ['void', 'sheet', 'filament', 'knot']
+if n_clusters == 2:
+    colors = ['lightgrey', 'black']
+    envirs = ['void', 'knot']
 elif n_clusters == 3:
     colors = ['lightgrey', 'darkgrey', 'red']
     envirs = ['underdense', 'filament', 'knot']
+elif n_clusters == 4:
+    colors = ['lightgrey', 'grey', 'black', 'red']
+    envirs = ['void', 'sheet', 'filament', 'knot']
 elif n_clusters == 5:
     colors = ['lightgrey', 'grey', 'darkgrey', 'black', 'red']
     envirs = ['void', 'sheet', 'wall', 'filament', 'knot']
+elif n_clusters == 6:
+    colors = ['lightgrey', 'grey', 'darkgrey', 'black', 'orange', 'red']
+    envirs = ['void', 'sheet', 'wall', 'filament', 'clump', 'knot']
 
 vers = vers + '_k' + str(n_clusters)
 out_evs_3d = 'output/kmeans_3d_' + vers
@@ -291,8 +326,8 @@ if plotLambdas == True:
 
 # Plot a slice of the local volume
 if plotKLV == True:
-    z_min = 48.00
-    z_max = 52.00
+    z_min = box * 0.5 - thick
+    z_max = box * 0.5 + thick
 
     web_df = web_df[web_df['z'] > z_min]
     web_df = web_df[web_df['z'] < z_max]
@@ -304,7 +339,7 @@ if plotKLV == True:
     web_df['x'] = web_df['x'].apply(lambda x: x - 50.0)
     web_df['y'] = web_df['y'].apply(lambda x: x - 50.0)
 
-    lim = 50
+    lim = box * 0.5
 
     fontsize = 20
 
@@ -314,6 +349,8 @@ if plotKLV == True:
         size = 20
     elif grid == 128:
         size = 5
+    elif grid == 256:
+        size = 2
         
     plt.figure(figsize=(10, 10))
     plt.xlim([-lim, lim])
