@@ -116,8 +116,8 @@ file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
 #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
 #web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
 
-#web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
-web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
+web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
+#web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
 
 box = 500.0e+3; thick = 7.0e+3
 #box = 500.0; thick = 5.0
