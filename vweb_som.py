@@ -11,6 +11,9 @@ from sklearn.preprocessing import MinMaxScaler
 from minisom import MiniSom
 
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+
 import pandas as pd
 import seaborn as sns
 import numpy as np
@@ -22,9 +25,14 @@ import tools as t
 """
 
 plot3d = False
-plotKLV = True
+plotKLV = False
 plotEVs = True
 plotLambdas = True
+
+colormaptype = 'viridis'
+
+save_csv = True; csv_version = 0
+save_csv = False
 
 file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
 #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
@@ -50,9 +58,13 @@ X = web_df[cols_select].values
 #X = sc.fit_transform(X)
 #print(X)
 
+n_max = 0
+#n_max = 6
+
 # Generate and train the actual Self Organizing Map
 n_feat = len(cols_select)
-n_x = 1; n_y = 6
+n_x = 1; n_y = 2
+vers = vers + 'nx' + str(n_x) + '_ny' + str(n_y)
 n_clusters = n_x * n_y
 
 print('Generating a ', n_x, 'x', n_y, ' SOM with ', n_feat, ' features.')
@@ -64,7 +76,12 @@ som.train_random(data = X, num_iteration = 50, verbose = True)
 web_type = np.zeros((len(web_df)), dtype=int)
 
 for i, x in enumerate(X):
-    web_type[i] = int(som.winner(x)[1])
+    if n_x == 1:
+        web_type[i] = int(som.winner(x)[1])
+    if n_x > 1:
+        winner = som.winner(x)
+        web_type[i] = winner[0] + n_x * winner[1]
+    #print(winner, winner[0] + 2 * winner[1])
 
 #winner_x = np.array([som.winner(x) for x in X]).T
 #print(winner_x[1])
@@ -77,7 +94,24 @@ out_evs_dist = 'output/som_vweb_' + vers
 out_dens_dist = 'output/som_dens_' + vers
 out_web_slice = 'output/som_web_lv_' + vers
 
-if n_clusters == 2:
+if n_clusters > n_max:
+    envirs = []
+    colors = []
+    cticks = []
+
+    colormap = cm.get_cmap(colormaptype, n_clusters)
+
+    for i in range(0, n_clusters):
+        envirs.append(str(i))
+        cmap = colormap(float(i/n_clusters))
+        color = np.array(cmap).reshape(1,-1)
+        #color = np.atleast_2d(np.array(cmap))
+        colors.append(color)
+        cticks.append(float(i/(n_clusters-1)))
+
+        #print(envirs[-1], colors[-1])
+'''
+elif n_clusters == 2:
     colors = ['lightgrey', 'black']
     envirs = ['void', 'knot']
 elif n_clusters == 3:
@@ -92,6 +126,7 @@ elif n_clusters == 5:
 elif n_clusters == 6:
     colors = ['lightgrey', 'grey', 'darkgrey', 'black', 'orange', 'red']
     envirs = ['void', 'sheet', 'wall', 'filament', 'clump', 'knot']
+'''
 
 envirs_sort = []
 colors_sort = []
@@ -101,7 +136,9 @@ ntot = len(web_df)
 
 for i in range(0, n_clusters):
     deltas[i] = np.median(web_df[web_df['env'] == i]['dens'].values)
+    print(i, deltas[i])
 
+print('Deltas: ', deltas)
 deltas_sort = np.sort(deltas)
 
 for i in range(0, n_clusters):
@@ -113,17 +150,23 @@ for i in range(0, n_clusters):
 
     num_str = '& $ %.3f $ & $%.3f$ ' % (deltas[i], n/ntot)
     tab_str = env_str + num_str
-    print(tab_str)
+    print(tab_str, colors_sort[-1])
 
 cols = []
 
 if plot3d == True:
-    for il, cl in enumerate(kmeans.labels_):
-        cols.append(colors_sort[cl])
+    for il, cl in enumerate(web_df['env']):
+        cmap = colormap(float(cl/n_clusters))
+        #color = np.array(cmap).reshape(1,-1)
+        cols.append(cmap)
+        #print(i, cl)
+
+    print('Env: ', len(web_df['env']))
+    print('Col: ', len(cols))
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(web_ev_df['l1'], web_ev_df['l2'], web_ev_df['l3'], c = cols)
+    ax.scatter(web_df['l1'], web_df['l2'], web_df['l3'], c = cols)
     ax.set_xlabel(r'$\lambda_1$')
     ax.set_ylabel(r'$\lambda_2$')
     ax.set_zlabel(r'$\lambda_3$')
@@ -152,7 +195,7 @@ for i in range(0, maxrange):
     # Plot the three eigenvalues
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
-    plt.title(envirs_sort[i] + ' $k=$' + str(n_clusters), fontsize=fontsize)
+    plt.title(envirs_sort[i] + ' $nx = ' + str(n_x) + ', ny = $' + str(n_y), fontsize=fontsize)
     plt.xlabel(r'$\lambda_3, \lambda_2, \lambda_2$', fontsize=fontsize)
 
     if grid == 32:
@@ -195,7 +238,8 @@ if plotLambdas == True:
 
         for ie, env in enumerate(envirs):
             tmp_env = web_df[web_df['env_name'] == env]
-            sns.distplot(tmp_env[col], color=colors[ie], label=env)
+            sns.distplot(tmp_env[col], label=env)
+            #sns.distplot(tmp_env[col], color=colors[ie], label=env)
 
         env_str = envirs_sort[i]
         f_out = out_evs_dist + str_grid + col + '.png'
@@ -258,13 +302,20 @@ if plotKLV == True:
         tmp_env = web_df[web_df['env_name'] == env]
         plt.scatter(tmp_env['x'], tmp_env['y'], c=colors[ie], s=size, marker='s')
 
+    if n_max == 0 or n_clusters > 6:
+        cbar = plt.colorbar(ticks = cticks) 
+        cbar.ax.set_yticklabels(envirs)
+        print(cticks, envirs)
+
     plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
     plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
-    plt.title('SOM $ n=$' + str(n_clusters), fontsize=fontsize)
+    plt.title('SOM $ nx=$' + str(n_x) + ', $n_y = $' + str(n_y), fontsize=fontsize)
+    #plt.colorbar()
     f_out = out_web_slice + str_grid + '.png'
     plt.tight_layout()
     plt.savefig(f_out)
+    print('Plotting 2D slice to ', f_out)
 
 

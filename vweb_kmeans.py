@@ -114,14 +114,14 @@ plotLambdas = True
 file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
 #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
 #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
-#web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
 
-web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
+#web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
 #web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
 
-box = 500.0e+3; thick = 7.0e+3
+#box = 500.0e+3; thick = 7.0e+3
 #box = 500.0; thick = 5.0
-#box = 100.0; thick = 2.0
+box = 100.0; thick = 2.0
 
 web_df = pd.read_csv(file_base + web_file)
 
@@ -153,7 +153,7 @@ cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s
 
 web_ev_df = web_df[cols_select]
 
-n_clusters = 3
+n_clusters = 2
 
 kmeans = KMeans(n_clusters = n_clusters, n_init = 20)
 kmeans.fit(web_ev_df)
