@@ -63,7 +63,7 @@ n_max = 0
 
 # Generate and train the actual Self Organizing Map
 n_feat = len(cols_select)
-n_x = 1; n_y = 2
+n_x = 1; n_y = 3
 vers = vers + 'nx' + str(n_x) + '_ny' + str(n_y)
 n_clusters = n_x * n_y
 

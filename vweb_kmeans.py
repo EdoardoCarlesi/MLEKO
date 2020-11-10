@@ -10,11 +10,50 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
+from sklearn.metrics import silhouette_score, homogeneity_score, calinski_harabasz_score, silhouette_samples
+from yellowbrick.cluster import KElbowVisualizer
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import numpy as np
 import tools as t
+
+
+def evaluate_metrics(data=None, n_clusters_max=None, n_init=10):
+
+    sil_score = []
+    ch_score = []
+    
+    n_data = int(len(data) / 1000)
+    data = data.sample(n_data)
+
+    for n_clusters in range(2, n_clusters_max+1):
+
+        kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
+        kmeans.fit(data)
+
+        X = data.values
+        labels = kmeans.fit_predict(X)
+
+        # This is the average score computed among the individual ones
+        s_score = silhouette_score(X, labels)  
+        c_score = calinski_harabasz_score(X, labels)
+    
+        print(f'Silhouette score for n_clusters = {n_clusters} is {s_score}, CH score is {c_score}')
+
+        sil_score.append(s_score)
+        ch_score.append(c_score)
+
+    print('Elbow Method score...')
+    model = KMeans()
+    visualizer = KElbowVisualizer(model, k=(2, n_clusters_max))
+
+    visualizer.fit(X)        
+    visualizer.show()
+    plt.show()
+
+    return kmeans
 
 
 def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
@@ -103,13 +142,16 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
 """
 
 # Program settings
-normalize = True
+normalize = False
 
-plotStd = True
+evalMetrics = True
+
+plotNew = False
+plotStd = False
 plot3d = False
-plotKLV = True
-plotEVs = True
-plotLambdas = True
+plotKLV = False
+plotEVs = False
+plotLambdas = False
 
 file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
 #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
@@ -124,6 +166,11 @@ web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
 box = 100.0; thick = 2.0
 
 web_df = pd.read_csv(file_base + web_file)
+
+#plot_new_form(data=web_df, f_out='output/evs_new_form')
+
+n_clusters = 10
+n_init = 1
 
 if normalize == True:
     #norm = 1/1024.0 
@@ -153,16 +200,16 @@ cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s
 
 web_ev_df = web_df[cols_select]
 
-n_clusters = 2
+if evalMetrics == True:
 
-kmeans = KMeans(n_clusters = n_clusters, n_init = 20)
-kmeans.fit(web_ev_df)
+    kmeans = evaluate_metrics(data=web_ev_df, n_clusters_max=n_clusters, n_init=n_init)
+    
+else:
+    kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
+    kmeans.fit(web_ev_df)
 
 centers = kmeans.cluster_centers_
-
-#print(type(kmeans.labels_))
 web_df['env'] = kmeans.labels_
-#ntot = len(web_df)
 
 if n_clusters == 2:
     colors = ['lightgrey', 'black']
@@ -181,6 +228,7 @@ elif n_clusters == 6:
     envirs = ['void', 'sheet', 'wall', 'filament', 'clump', 'knot']
 
 vers = vers + '_k' + str(n_clusters)
+out_evs_new = 'output/kmeans_new_' + vers
 out_evs_3d = 'output/kmeans_3d_' + vers
 out_evs_dist = 'output/kmeans_vweb_' + vers
 out_dens_dist = 'output/kmeans_dens_' + vers
@@ -214,6 +262,31 @@ for i in range(0, n_clusters):
     line_str = envirs_sort[i] + c_str
     print(line_str)
 
+cols = []
+
+if plotNew == True:
+    for il, cl in enumerate(kmeans.labels_):
+        cols.append(colors_sort[cl])
+
+    horizont = [web_ev_df['l3'].min(), web_ev_df['l1'].max()]
+    vertical = [web_ev_df['l2'].min(), web_ev_df['l2'].max()]
+    diagonal = [web_ev_df['l3'].min(), web_ev_df['l1'].max()]
+    zeros = [0.0, 0.0]
+
+    print('Plotting in new format...')
+    plt.plot(horizont, zeros, color = 'black')
+    plt.plot(zeros, vertical, color = 'black')
+    plt.plot(diagonal, diagonal, color = 'blue')
+
+    plt.scatter(web_ev_df['l1'], web_ev_df['l2'], c = cols, marker = 'v') #, size = size1)
+    plt.scatter(web_ev_df['l3'], web_ev_df['l2'], c = cols, marker = '+') #, size = size2)
+    plt.xlabel(r'$\lambda_1, \lambda_3$')
+    plt.ylabel(r'$\lambda_2$')
+    plt.tight_layout()
+    f_out = out_evs_new + str_grid + '.png'
+    plt.savefig(f_out)
+    print('Done.')
+ 
 cols = []
 
 if plot3d == True:
