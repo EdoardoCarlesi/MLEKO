@@ -20,16 +20,117 @@ import numpy as np
 import tools as t
 
 
+def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=1000, verbose=False, f_out=None):
+    
+    # Rescale the dataset size for faster convergence
+    n_data = int(len(data) / rescale_factor)
+    data = data.sample(n_data, random_state = 1389)
+
+    # This array will be returned at the end. It contains k, median error, median std on the error, median distance between clusters and median scatter over median distance
+    results = np.zeros((n_clusters_max-1, 5))
+    df_print = pd.DataFrame()
+
+    columns = ['k', 'med_center', 'med_center_std', 'med_dist', 'med_center_med_dist']
+
+    for n_clusters in range(2, n_clusters_max+1):
+        centers = []
+        minima = []
+
+        # For each n_cluster value do n different iterations to check how much variance there is
+        for i_k in range(0, n_ks):
+
+            random_state = 10 * (i_k + n_clusters) + 1389
+
+            if verbose:
+                print(f'For n_clusters_max = {n_clusters}, iteration number = {i_k}, random state = {random_state}')
+
+            kmeans = KMeans(n_clusters = n_clusters, n_init = 1, random_state = random_state)
+            kmeans.fit(data)
+
+            X = data.values
+            labels = kmeans.fit_predict(X)
+            centers.append(kmeans.cluster_centers_)
+    
+        minima = []
+        all_dist = []
+
+        # Look at the scatter between cluster centers
+        for i_c, center in enumerate(centers):
+
+            for i_t, this_center in enumerate(center):
+                center_dist = []
+                inter_dist = []
+
+                for this_cluster in center[i_t+1:]:
+                    inter = t.distance(this_center, this_cluster)
+                    inter_dist.append(inter)
+
+                siz_ic = len(inter_dist)
+
+                if siz_ic == n_clusters-1:
+                    avg_ic = np.median(inter_dist)
+                    std_ic = np.std(inter_dist)
+
+                    if verbose:
+                        print(f'Average intracluster distance: {avg_ic}, stddev: {std_ic}, size: {siz_ic}')
+
+                    # This is the average distance between centers for all the k means realizations
+                    all_dist.append(avg_ic)
+
+                # Look at the distance of the i_c-th cluster in ONE k means realization to ALL the remaining k-mean realizations
+                for other_centers in centers[:][i_c+1::]:
+                    for other_center in other_centers:
+                        dist = t.distance(this_center, other_center)
+                        center_dist.append(dist)
+    
+                # Do try-except so that it is safe for the last step (comparing the last item with itself)
+                try:
+                    min_scatter = min(center_dist)
+                    minima.append(min_scatter)
+
+                    if verbose:
+                        print(f'{i_c}) Center: {this_center}, min scatter: {min_scatter}')
+                except:
+                    pass
+        
+        minimum = np.mean(minima)
+        stddev = np.std(minima)
+        avgdist = np.median(all_dist)
+        print(f'k={n_clusters}, average center scatter={minimum}, stddev on center scatter: {stddev}, median interdist: {avgdist}, rescaled scatter: {minimum/avgdist}')
+
+        results[n_clusters-2, 0] = n_clusters
+        results[n_clusters-2, 1] = minimum
+        results[n_clusters-2, 2] = stddev
+        results[n_clusters-2, 3] = avgdist
+        results[n_clusters-2, 4] = minimum/avgdist
+
+    print(results)
+
+    if f_out != None:
+        for i_col, col in enumerate(columns):
+            df_print[col] = results[:, i_col]
+        
+        print(df_print.head())
+
+        sns.lineplot(x=df_print[columns[0]], y=df_print[columns[1]])
+        sns.lineplot(x=df_print[columns[0]], y=df_print[columns[4]])
+        plt.legend(labels=['Center Scatter', 'Center Scatter Norm.'])
+        plt.show()
+
+
+
 def evaluate_metrics(data=None, n_clusters_max=None, n_init=10):
 
     sil_score = []
     ch_score = []
-    
+    ks = []
+
     n_data = int(len(data) / 1000)
-    data = data.sample(n_data)
+    data = data.sample(n_data, random_state = 1389)
 
     for n_clusters in range(2, n_clusters_max+1):
 
+        ks.append(n_clusters)
         kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
         kmeans.fit(data)
 
@@ -44,6 +145,22 @@ def evaluate_metrics(data=None, n_clusters_max=None, n_init=10):
 
         sil_score.append(s_score)
         ch_score.append(c_score)
+        
+    plt.cla()
+    plt.clf()
+    plt.xlabel('k')
+    plt.ylabel('CH-score')
+    plt.plot(ks, ch_score, color='blue')
+    plt.savefig('output/ch_score.png')
+
+    plt.cla()
+    plt.clf()
+    plt.xlabel('k')
+    plt.ylabel('Silhouette-score')
+    plt.plot(ks, sil_score, color='blue')
+    plt.savefig('output/sil_score.png')
+    plt.cla()
+    plt.clf()
 
     print('Elbow Method score...')
     model = KMeans()
@@ -155,8 +272,8 @@ plotLambdas = False
 
 file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
 #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
-#web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
-web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
+#web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
 
 #web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
 #web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
@@ -202,7 +319,12 @@ web_ev_df = web_df[cols_select]
 
 if evalMetrics == True:
 
+    n_ks = 10
+    rescale = 100
+    f_out = 'output/kmeans_stability' + str_grid
+
     kmeans = evaluate_metrics(data=web_ev_df, n_clusters_max=n_clusters, n_init=n_init)
+    #kmeans_stability(data=web_ev_df, n_clusters_max=n_clusters, n_ks=n_ks, rescale_factor=rescale, f_out=f_out)
     
 else:
     kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)

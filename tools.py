@@ -15,6 +15,12 @@ import numpy as np
 import glob, os
 import cv2
 
+def distance(v0, v1):
+
+    v = (v0 - v1)**2
+    return np.sqrt(np.sum(v))
+
+
 '''
     Find the percentiles and error bars
 '''
