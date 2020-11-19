@@ -10,10 +10,28 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from scipy import stats
 
+import functools
+import time
 import pandas as pd
 import numpy as np
 import glob, os
 import cv2
+
+'''
+    Simple decorator function
+'''
+def time_total(function):
+    
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        t0 = time.time()
+        function(*args, **kwargs)
+        t1 = time.time()
+
+        dt = t1 - t0
+        print(f'Function {function.__name__!r} took {dt:.4f} seconds to execute')
+
+    return wrapper
 
 def distance(v0, v1):
 

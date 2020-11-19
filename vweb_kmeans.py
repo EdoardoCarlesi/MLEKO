@@ -19,7 +19,20 @@ import seaborn as sns
 import numpy as np
 import tools as t
 
+def entropy(labels=None, k=None):
 
+    n = len(labels)
+
+    e_i = 0.0
+    for i_k in range(0, k):
+        n_i = len(np.where(labels == i_k)[0])
+        e_i -= (n_i / n) * np.log(n_i / n)
+        #print(i_k, n_i, n, e_i)
+
+    print('Entropy : ', e_i)
+    return e_i
+
+@t.time_total
 def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=1000, verbose=False, f_out=None):
     
     # Rescale the dataset size for faster convergence
@@ -118,14 +131,15 @@ def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=100
         plt.show()
 
 
-
-def evaluate_metrics(data=None, n_clusters_max=None, n_init=10):
+@t.time_total
+def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor = 10):
 
     sil_score = []
     ch_score = []
+    ent_score = []
     ks = []
 
-    n_data = int(len(data) / 1000)
+    n_data = int(len(data) / rescale_factor)
     data = data.sample(n_data, random_state = 1389)
 
     for n_clusters in range(2, n_clusters_max+1):
@@ -140,11 +154,14 @@ def evaluate_metrics(data=None, n_clusters_max=None, n_init=10):
         # This is the average score computed among the individual ones
         s_score = silhouette_score(X, labels)  
         c_score = calinski_harabasz_score(X, labels)
-    
-        print(f'Silhouette score for n_clusters = {n_clusters} is {s_score}, CH score is {c_score}')
+        e_score = entropy(labels = labels, k = n_clusters)
+        print(data.head())
+        
+        print(f'Silhouette score for n_clusters = {n_clusters} is {s_score}, CH score is {c_score}, Entropy is {e_score}')
 
         sil_score.append(s_score)
         ch_score.append(c_score)
+        ent_score.append(e_score)
         
     plt.cla()
     plt.clf()
@@ -162,13 +179,25 @@ def evaluate_metrics(data=None, n_clusters_max=None, n_init=10):
     plt.cla()
     plt.clf()
 
-    print('Elbow Method score...')
-    model = KMeans()
-    visualizer = KElbowVisualizer(model, k=(2, n_clusters_max))
+    plt.rcParams.update({"text.usetex": True})
+    plt.cla()
+    plt.clf()
+    plt.xlabel('k')
+    plt.ylabel('Entropy')
+    plt.title(r'$H(k) = - \sum_{i=0}^{k}(n_i / n_{tot}) log(n_i / n_{tot})$')
+    plt.plot(ks, ent_score, color='blue')
+    plt.savefig('output/entropy_score.png')
+    plt.cla()
+    plt.clf()
 
-    visualizer.fit(X)        
-    visualizer.show()
-    plt.show()
+
+    #print('Elbow Method score...')
+    #model = KMeans()
+    #visualizer = KElbowVisualizer(model, k=(2, n_clusters_max))
+
+    #visualizer.fit(X)        
+    #visualizer.show()
+    #plt.show()
 
     return kmeans
 
@@ -271,8 +300,8 @@ plotEVs = False
 plotLambdas = False
 
 file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
-#web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
-web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
+web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
+#web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
 #web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
 
 #web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
@@ -320,12 +349,14 @@ web_ev_df = web_df[cols_select]
 if evalMetrics == True:
 
     n_ks = 10
-    rescale = 100
+    rescale = 1
     f_out = 'output/kmeans_stability' + str_grid
 
     kmeans = evaluate_metrics(data=web_ev_df, n_clusters_max=n_clusters, n_init=n_init)
     #kmeans_stability(data=web_ev_df, n_clusters_max=n_clusters, n_ks=n_ks, rescale_factor=rescale, f_out=f_out)
     
+    exit()
+
 else:
     kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
     kmeans.fit(web_ev_df)
