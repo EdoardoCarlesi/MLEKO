@@ -34,7 +34,10 @@ def entropy(labels=None, k=None):
 
 @t.time_total
 def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=1000, verbose=False, f_out=None):
-    
+    """
+        Check how stable are the centers of the k-means, comparing for different ks
+    """
+
     # Rescale the dataset size for faster convergence
     n_data = int(len(data) / rescale_factor)
     data = data.sample(n_data, random_state = 1389)
@@ -54,7 +57,7 @@ def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=100
 
             random_state = 10 * (i_k + n_clusters) + 1389
 
-            if verbose:
+            if verbose == True:
                 print(f'For n_clusters_max = {n_clusters}, iteration number = {i_k}, random state = {random_state}')
 
             kmeans = KMeans(n_clusters = n_clusters, n_init = 1, random_state = random_state)
@@ -131,6 +134,83 @@ def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=100
         plt.show()
 
 
+def check_distribution(values):
+    """
+        Quick sanity check on a distribution
+    """
+
+    std = np.std(values)
+    med = np.median(values)
+    mea = np.mean(values)
+
+    print(f'Mean: {mea}, median: {med}, stddev: {std}')
+
+
+@t.time_total
+def generate_random(data=None, grid=None, prior='flat', verbose=False):
+    """
+        Generate a random distribution of eigenvalues
+    """
+
+    print(f'Generating a random distribution of {grid}^3 points using a {prior} prior...')
+    n_pts = grid * grid * grid
+    rand_data = pd.DataFrame()
+
+    means = []
+    stddevs = []
+    new_col = []
+
+    for col in data.columns:
+        means.append(data[col].mean())
+        stddevs.append(data[col].std())
+        new_col.append('rand_' + col)
+
+    l2s = []
+    l3s = []
+
+    '''
+    print(new_col)
+    print(means)
+    print(stddevs)
+    '''
+
+    def rand_prior(prior=None, *args, **kwargs):
+        if prior == 'flat':
+            pass
+        
+        elif prior == 'gauss':
+            pts = np.random.normal(**kwargs)
+
+        return pts
+
+    l1s = rand_prior(prior=prior, loc=means[0], scale=stddevs[0], size=n_pts)
+
+    for l1 in l1s:
+        l2 = 1.0e+7
+        l3 = 1.0e+8
+
+        while (l1 < l2):
+            l2 = rand_prior(prior=prior, loc=means[1], scale=stddevs[1], size=1)
+
+        l2s.append(l2)
+
+        while (l2 < l3):
+            l3 = rand_prior(prior=prior, loc=means[2], scale=stddevs[2], size=1)
+                
+        l3s.append(l3)
+ 
+    if verbose:
+        check_distribution(l1s)
+        check_distribution(l2s)
+        check_distribution(l3s)
+
+    rand_data[new_col[0]] = np.array(l1s)
+    rand_data[new_col[1]] = np.array(l2s)
+    rand_data[new_col[2]] = np.array(l3s)
+
+    return rand_data
+
+
 @t.time_total
 def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor = 10):
 
@@ -190,20 +270,23 @@ def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor =
     plt.cla()
     plt.clf()
 
+    print('Elbow Method score...')
+    model = KMeans()
+    visualizer = KElbowVisualizer(model, k=(2, n_clusters_max))
 
-    #print('Elbow Method score...')
-    #model = KMeans()
-    #visualizer = KElbowVisualizer(model, k=(2, n_clusters_max))
-
-    #visualizer.fit(X)        
+    visualizer.fit(X)        
     #visualizer.show()
     #plt.show()
 
     return kmeans
 
 
+@t.time_total
 def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
-    
+    '''
+        Plot the usual vweb using an input threshold and a given dataset
+    '''
+
     z_min = box * 0.5 - thick
     z_max = box * 0.5 + thick
 
@@ -352,9 +435,12 @@ if evalMetrics == True:
     rescale = 1
     f_out = 'output/kmeans_stability' + str_grid
 
-    kmeans = evaluate_metrics(data=web_ev_df, n_clusters_max=n_clusters, n_init=n_init)
+    #kmeans = evaluate_metrics(data=web_ev_df, n_clusters_max=n_clusters, n_init=n_init)
     #kmeans_stability(data=web_ev_df, n_clusters_max=n_clusters, n_ks=n_ks, rescale_factor=rescale, f_out=f_out)
     
+    grid = 32
+    generate_random(data=web_ev_df, grid=grid, prior='gauss')
+
     exit()
 
 else:
@@ -464,17 +550,24 @@ if plotEVs == True:
 else:
     maxrange = 0
 
-for i in range(0, maxrange):
-    evs_df = web_df[web_df['env'] == i]
+#for i in range(0, maxrange):
+
+@t.time_total
+def plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None, grid=None): 
+    """
+        Plot the three eigenvalues distributions for a given environment type
+    """
+
+    evs = data[data['env'] == env_type]
 
     # Only plot the first three axes i.e. the eigenvalues
     for col in cols_select[0:3]:
         sns.distplot(evs_df[col])
     
-    env_str = envirs_sort[i]
-    f_out = out_evs_dist + env_str + str_grid + '.png'
+    env_str = str(env_type)
+    file_out = out_base + env_str + str_grid + '_evs.png'
 
-    print('Plotting l to: ', f_out)
+    print(f'Plotting eigenvalues per environment type to: {file_out}')
     fontsize=10
 
     # Plot the three eigenvalues
@@ -499,101 +592,23 @@ for i in range(0, maxrange):
         plt.xlim(-2, 2)
 
     nbins = 100
-    #plt.xscale('log')
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
     deltam = '%.3f' % deltas[i]
     plt.title(env_str + r': $ \bar \Delta_m = $' + deltam + ' $, k=$' + str(n_clusters))
-    sns.distplot(np.log10(evs_df['dens']), bins=nbins)
+    sns.distplot(np.log10(evs['dens']), bins=nbins)
 
     plt.xlabel(r'$\log_{10}\Delta _m$', fontsize=fontsize)
-    f_out = out_dens_dist + env_str + str_grid + '.png'
-    print('Plotting d to: ', f_out)
-    plt.savefig(f_out)
+    file_out = out_base + env_str + str_grid + '_dens.png'
+    print(f'Plotting density per environment type to: ', file_out)
+    plt.savefig(file_out)
     plt.clf()
     plt.cla()
 
 
-if plotLambdas == True:
+#if plotLambdas == True:
 
-    labels = ['$\lambda_1$', '$\lambda_2$', '$\lambda_3$']
-    web_df['env_name'] = web_df['env'].apply(lambda x: envirs_sort[x])
-
-    for il, col in enumerate(cols_select):
-
-        for ie, env in enumerate(envirs):
-            tmp_env = web_df[web_df['env_name'] == env]
-            sns.distplot(tmp_env[col], color=colors[ie], label=env)
-
-        env_str = envirs_sort[i]
-        f_out = out_evs_dist + str_grid + col + '.png'
-
-        print('Plotting l to: ', f_out)
-        fontsize=10
-
-        # Plot the three eigenvalues
-        plt.xticks(fontsize=fontsize)
-        plt.yticks(fontsize=fontsize)
-
-        if grid == 32:
-            plt.xlim([-0.5, 0.5])
-        elif grid == 128:
-            plt.xlim([-1, 3.0])
-
-        plt.xlabel(labels[il], fontsize=fontsize)
-        plt.legend()
-        plt.tight_layout()
-    
-        # Save figure and clean plot
-        plt.savefig(f_out)
-        plt.clf()
-        plt.cla()
-
-
-# Plot a slice of the local volume
-if plotKLV == True:
-    z_min = box * 0.5 - thick
-    z_max = box * 0.5 + thick
-
-    web_df = web_df[web_df['z'] > z_min]
-    web_df = web_df[web_df['z'] < z_max]
-
-    web_df['env_name'] = web_df['env'].apply(lambda x: envirs_sort[x])
-
-    ind_vals = kmeans.labels_[web_df.index]
-
-    web_df['x'] = web_df['x'].apply(lambda x: x - 50.0)
-    web_df['y'] = web_df['y'].apply(lambda x: x - 50.0)
-
-    lim = box * 0.5
-
-    fontsize = 20
-
-    if grid == 32:
-        size = 100
-    elif grid == 64:
-        size = 20
-    elif grid == 128:
-        size = 5
-    elif grid == 256:
-        size = 2
-        
-    plt.figure(figsize=(10, 10))
-    plt.xlim([-lim, lim])
-    plt.ylim([-lim, lim])
-
-    for ie, env in enumerate(envirs):
-        tmp_env = web_df[web_df['env_name'] == env]
-        plt.scatter(tmp_env['x'], tmp_env['y'], c=colors[ie], s=size, marker='s')
-
-    plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
-    plt.title(str_kmeans + ' $k=$' + str(n_clusters), fontsize=fontsize)
-    f_out = out_web_slice + str_grid + '.png'
-    plt.tight_layout()
-    plt.savefig(f_out)
-
+#def plot_lambda_distribution(data=None, grid=None, base_out=None, envirs=None):
+#def plot_local_volume_density_slice(data=None, box=100, file_out=None, title=None):
 
 
