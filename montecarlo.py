@@ -1,3 +1,14 @@
+"""
+    MLEKO
+    Machine Learning Ecosystem for KOsmology
+
+    (C) Edoardo Carlesi 2020
+    https://github.com/EdoardoCarlesi/MLEKO
+"""
+
+
+
+
 import pickle
 import numpy as np
 import pandas as pd

@@ -1,10 +1,10 @@
-'''
-    CluesML
-    Machine Learning tools for the CLUES project
+"""
+    MLEKO
+    Machine Learning Ecosystem for KOsmology 
 
     (C) Edoardo Carlesi 2020
-    https://github.com/EdoardoCarlesi/CluesML
-'''
+    https://github.com/EdoardoCarlesi/MLEKO
+"""
 
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
@@ -168,11 +168,11 @@ def generate_random(data=None, grid=None, prior='flat', verbose=False):
     l2s = []
     l3s = []
 
-    '''
+    """
     print(new_col)
     print(means)
     print(stddevs)
-    '''
+    """
 
     def rand_prior(prior=None, *args, **kwargs):
         if prior == 'flat':
@@ -283,9 +283,9 @@ def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor =
 
 @t.time_total
 def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
-    '''
+    """
         Plot the usual vweb using an input threshold and a given dataset
-    '''
+    """
 
     z_min = box * 0.5 - thick
     z_max = box * 0.5 + thick

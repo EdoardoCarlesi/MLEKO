@@ -1,18 +1,19 @@
-'''
-    CluesML
-    Machine Learning tools for the CLUES project
+"""
+    MLEKO
+    Machine Learning Ecosystem for KOsmology
 
     (C) Edoardo Carlesi 2020
-    https://github.com/EdoardoCarlesi/CluesML
-'''
+    https://github.com/EdoardoCarlesi/MLEKO
+"""
 
 import pandas as pd
 import numpy as np
 
-'''
-    Read all the fullbox LG data for each box, without VWeb information
-'''
+
 def read_lg_rs_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_rs', lgf_data=False, lgf_hires_data=False, files=[0, 20], TA=False):
+    """
+        Read all the fullbox LG data for each box, without VWeb information
+    """
 
     all_data = []
     for i in range(files[0], files[1]):
@@ -29,10 +30,10 @@ def read_lg_rs_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox
     return data
 
 
-'''
-    Read all the LGF / Hestia simulation LG data
-'''
 def read_lg_lgf(TA=False):
+    """
+        Read all the LGF / Hestia simulation LG data
+    """
 
     if TA == True:
         data_file = '/home/edoardo/CLUES/PyRCODIO/output/lg_pairs_512_TA.csv'
@@ -43,10 +44,10 @@ def read_lg_lgf(TA=False):
     return data
 
 
-'''
-    Read all the fullbox LG data for each box, without VWeb information
-'''
 def read_lg_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox', TA=False, radii=False):
+    """
+        Read all the fullbox LG data for each box, without VWeb information
+    """
 
     if TA == True:
         data_ta = file_base + '_TA.csv'
@@ -73,10 +74,11 @@ def read_lg_fullbox(file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox', 
     
     return data
 
-'''
-    Read vweb ONLY at the LG position
-'''
+
 def read_lg_vweb(grid_size=64, file_base='/home/edoardo/CLUES/PyRCODIO/output/lg_fullbox_vweb_'):
+    """
+        Read vweb ONLY at the LG position
+    """
     
     grid = '%03d' % grid_size
     file_base = file_base + grid
@@ -96,10 +98,11 @@ def read_lg_vweb(grid_size=64, file_base='/home/edoardo/CLUES/PyRCODIO/output/lg
 
     return data
 
-'''
-    Read both vweb and lg data, concatenate the sets   
-'''
+
 def read_lg_fullbox_vweb(grids = [64], TA=False):
+    """
+        Read both vweb and lg data, concatenate the sets   
+    """
 
     # First read the full data for each LG
     data = read_lg_fullbox(TA=TA)

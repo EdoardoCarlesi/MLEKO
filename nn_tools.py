@@ -1,10 +1,11 @@
-'''
-    CluesML
-    Machine Learning tools for the CLUES project
+"""
+    MLEKO
+    Machine Learning Ecosystem for KOsmology
 
     (C) Edoardo Carlesi 2020
-    https://github.com/EdoardoCarlesi/CluesML
-'''
+    https://github.com/EdoardoCarlesi/MLEKO
+"""
+
 
 import keras as ks
 import pandas as pd

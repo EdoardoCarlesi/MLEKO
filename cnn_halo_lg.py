@@ -1,10 +1,10 @@
-'''
-    CluesML
-    Machine Learning tools for the CLUES project
+"""
+    MLEKO
+    Machine Learning Ecosystem for KOsmology
 
     (C) Edoardo Carlesi 2020
-    https://github.com/EdoardoCarlesi/CluesML
-'''
+    https://github.com/EdoardoCarlesi/MLEKO
+"""
 
 from cnn_model import CNN_Model
 import nn_tools as nnt

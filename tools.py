@@ -1,10 +1,10 @@
-'''
-    CluesML
-    Machine Learning tools for the CLUES project
+"""
+    MLEKO
+    Machine Learning Ecosystem for KOsmology
 
     (C) Edoardo Carlesi 2020
-    https://github.com/EdoardoCarlesi/CluesML
-'''
+    https://github.com/EdoardoCarlesi/MLEKO
+"""
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -17,10 +17,11 @@ import numpy as np
 import glob, os
 import cv2
 
-'''
-    Simple decorator function
-'''
+
 def time_total(function):
+    """
+        Simple decorator to compute the time used by a given function
+    """
     
     @functools.wraps(function)
     def wrapper(*args, **kwargs):
@@ -39,10 +40,10 @@ def distance(v0, v1):
     return np.sqrt(np.sum(v))
 
 
-'''
-    Find the percentiles and error bars
-'''
 def percentiles(x=None, perc=[20, 50, 80]):
+    """
+        Find the percentiles and error bars
+    """
 
     pct = np.percentile(x, perc)
 
@@ -52,10 +53,10 @@ def percentiles(x=None, perc=[20, 50, 80]):
     return pct
 
 
-'''
-    Do a PCA analysis of a dataset
-'''
 def data_pca(data=None, columns=None, pca_percent=None):
+    """
+        Do a PCA analysis of a dataset
+    """
 
     print('Doing PCA reduction of dataset: ', columns)
 
@@ -92,19 +93,20 @@ def data_pca(data=None, columns=None, pca_percent=None):
 
     return pc_df
 
-'''
-    Check the shape of an input image
-'''
 def check_image(img):
+    """
+        Check the shape of an input image
+    """
+
     f = cv2.imread(img)
     print(img,  ' has shape: ', f.shape)
 
     return f.shape
 
-'''
-    Spit out the path to all the files within a given folder
-'''
 def find_images_in_folder(path=None, extension='png'):
+    """
+        Spit out the path to all the files within a given folder
+    """
     os.chdir(path)
     img_list = []
 
@@ -113,10 +115,10 @@ def find_images_in_folder(path=None, extension='png'):
 
     return img_list
 
-'''
-    Mean absolute percentage error
-'''
 def MAPE(y_true, y_pred):
+    """
+        Mean absolute percentage error
+    """
     d_y = np.abs(y_true - y_pred)
     d_y = np.abs((d_y) / (y_true))
 
@@ -125,6 +127,9 @@ def MAPE(y_true, y_pred):
 
 # Normalize manually - do not rely on sklearn auto-matic methods
 def normalize_data(data=None, mode='boxcox', verbose=False):
+    """
+        Normalize a pandas DataFrame
+    """
 
     mass_norm = 1.0e+12
     vel_norm = 100.0

@@ -1,10 +1,11 @@
-'''
-    CluesML
-    Machine Learning tools for the CLUES project
+"""
+    MLEKO
+    Machine Learning Ecosystem for KOsmology 
 
     (C) Edoardo Carlesi 2020
-    https://github.com/EdoardoCarlesi/CluesML
-'''
+    https://github.com/EdoardoCarlesi/MLEKO
+"""
+
 
 from pyclustering.cluster.kmeans import kmeans
 from pyclustering.utils.metric import type_metric, distance_metric
@@ -26,13 +27,17 @@ import os
 
 
 def cluster_center(data=None, indexes=None):
-    """ When using pyclustering we need to compute every time the cluster center - TODO """
+    """ 
+        When using pyclustering we need to compute every time the cluster center - TODO 
+    """
     pass
 
 
 @t.time_total
 def plotDensitySlab(web_df = None, kmeans = None, str_kmeans = None, f_out = None, cols = ['l1', 'l2', 'l3'], n_clusters = 4, grid = 32, box = 100.0, thick = 2.0, verbose=False):
-    """ Plot a slice of the local volume"""
+    """ 
+        Plot a slice of the local volume
+    """
 
     z_min = box * 0.5 - thick
     z_max = box * 0.5 + thick
@@ -120,7 +125,9 @@ def plotDensitySlab(web_df = None, kmeans = None, str_kmeans = None, f_out = Non
 
 
 if __name__ == "__main__":
-    """ Execute main program """
+    """ 
+        Execute main program
+    """
 
     file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
     web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
