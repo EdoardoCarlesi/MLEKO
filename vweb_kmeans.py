@@ -9,443 +9,191 @@
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-
-from sklearn.metrics import silhouette_score, homogeneity_score, calinski_harabasz_score, silhouette_samples
-from yellowbrick.cluster import KElbowVisualizer
-
 import matplotlib.pyplot as plt
+import webtools as wt
 import pandas as pd
 import seaborn as sns
 import numpy as np
 import tools as t
 
-def entropy(labels=None, k=None):
 
-    n = len(labels)
 
-    e_i = 0.0
-    for i_k in range(0, k):
-        n_i = len(np.where(labels == i_k)[0])
-        e_i -= (n_i / n) * np.log(n_i / n)
-        #print(i_k, n_i, n, e_i)
+if __name__ == "__main__":
 
-    print('Entropy : ', e_i)
-    return e_i
-
-@t.time_total
-def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=1000, verbose=False, f_out=None):
     """
-        Check how stable are the centers of the k-means, comparing for different ks
+        MAIN PROGRAM - compute K-Means
     """
 
-    # Rescale the dataset size for faster convergence
-    n_data = int(len(data) / rescale_factor)
-    data = data.sample(n_data, random_state = 1389)
+    # Program Options: what should we run / analyze?
+    normalize = False
+    evalMetrics = True
+    doYehuda = False
 
-    # This array will be returned at the end. It contains k, median error, median std on the error, median distance between clusters and median scatter over median distance
-    results = np.zeros((n_clusters_max-1, 5))
-    df_print = pd.DataFrame()
+    plotNew = False
+    plotStd = False
+    plot3d = False
+    plotKLV = False
+    plotEVs = False
+    plotLambdas = False
 
-    columns = ['k', 'med_center', 'med_center_std', 'med_dist', 'med_center_med_dist']
+    file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
+    #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
+    #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
+    web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
 
-    for n_clusters in range(2, n_clusters_max+1):
-        centers = []
-        minima = []
+    #web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
+    #web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
 
-        # For each n_cluster value do n different iterations to check how much variance there is
-        for i_k in range(0, n_ks):
+    #box = 500.0e+3; thick = 7.0e+3
+    #box = 500.0; thick = 5.0
+    box = 100.0; thick = 2.0
 
-            random_state = 10 * (i_k + n_clusters) + 1389
+    web_df = pd.read_csv(file_base + web_file)
 
-            if verbose == True:
-                print(f'For n_clusters_max = {n_clusters}, iteration number = {i_k}, random state = {random_state}')
+    n_clusters = 10
+    n_init = 1
 
-            kmeans = KMeans(n_clusters = n_clusters, n_init = 1, random_state = random_state)
+    threshold_list = [0.0, 0.1, 0.2]
+
+    # Check out that the vweb coordinates should be in Mpc units
+    if normalize == True:
+        #norm = 1/1024.0 
+        norm = 1.0e-3   # kpc to Mpc
+        print('Norm: ', norm) 
+
+        web_df['l1'] = web_df['l1'] / norm
+        web_df['l2'] = web_df['l2'] / norm
+        web_df['l3'] = web_df['l3'] / norm
+
+    if plotStd == True: 
+
+        f_out = 'output/kmeans_oldvweb' + str_grid
+        #norm = web_df['l1'].max()
+
+        for threshold_lambda in threshold_list:
+            wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick)
+
+    #web_df['logdens'] = np.log10(web_df['dens'])
+    #print(web_df.head())
+
+    cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
+    #cols_select = ['l1', 'l2', 'l3', 'dens']; vers = 'd'; str_kmeans = r'$k$-means $\lambda$s, \Delta_m'
+    #cols_select = ['l1', 'l2', 'l3', 'logdens']; vers = 'ld'; str_kmeans = r'$k$-means $\lambda$s, $\log_{10}\Delta_m$'
+    #cols_select = ['l1', 'l2', 'l3', 'dens', 'Vx', 'Vy', 'Vz']; vers = 'd_vx'
+
+    data = web_df[cols_select]
+
+    if doYehuda:
+
+        n_clusters_tot = [2, 3, 4, 5, 6, 7, 8, 9, 10] 
+        random_state = 1
+
+        for n_clusters in n_clusters_tot:
+            kmeans = KMeans(n_clusters=n_clusters, n_init=n_init, random_state=random_state)
             kmeans.fit(data)
+            web_df['class'] = kmeans.labels_
 
-            X = data.values
-            labels = kmeans.fit_predict(X)
-            centers.append(kmeans.cluster_centers_)
+            fout = 'output/vweb_' + str(grid) + '_k' + str(n_clusters) + '_rand_state' + str(random_state) + '.txt'
+            print(n_clusters, fout)
+            web_df.to_csv(path_or_buf=fout, sep='\t', index=False, float_format='%.3f')
+
+    if evalMetrics == True:
+
+        n_ks = 10
+        rescale = 1
+        f_out = 'output/kmeans_stability' + str_grid
+        #n_clusters_tot = [2, 3] 
+        n_clusters_tot = [2, 3, 4, 5, 6, 7, 8, 9, 10] 
+        #kmeans = evaluate_metrics(data=web_ev_df, n_clusters_max=n_clusters, n_init=n_init)
+        #kmeans_stability(data=web_ev_df, n_clusters_max=n_clusters, n_ks=n_ks, rescale_factor=rescale, f_out=f_out)
     
-        minima = []
-        all_dist = []
+        prior='lognorm'
+        #prior='gauss'
+        #prior='flat'
+        #mode='ordered'
+        mode='simple'
+        data_rand = wt.generate_random(data=data, grid=grid, prior=prior, verbose=True, mode=mode)
+        #data_rand = wt.generate_random(data=data, grid=grid, prior='gauss', verbose=True, mode='ordered')
+        print(data_rand.head())
+        #data_rand.to_csv('output/random_web_128.txt', index=False)
+        #data_rand = pd.read_csv('output/random_web_128.txt')
+        #print(data_rand.head())
 
-        # Look at the scatter between cluster centers
-        for i_c, center in enumerate(centers):
+        k_all = []
+        k_std = []
+        k_rand = []
 
-            for i_t, this_center in enumerate(center):
-                center_dist = []
-                inter_dist = []
+        for n_clusters in n_clusters_tot:
+            kmeans = KMeans(n_clusters=n_clusters, n_init=n_init)
+            kmeans.fit(data)
+                
+            kmeans_rand = KMeans(n_clusters=n_clusters, n_init=n_init)
+            kmeans_rand.fit(data_rand)
 
-                for this_cluster in center[i_t+1:]:
-                    inter = t.distance(this_center, this_cluster)
-                    inter_dist.append(inter)
+            centers_rand = kmeans_rand.cluster_centers_
+            centers = kmeans.cluster_centers_
 
-                siz_ic = len(inter_dist)
+            data_rand['label'] = kmeans_rand.labels_
+            data['label'] = kmeans.labels_
 
-                if siz_ic == n_clusters-1:
-                    avg_ic = np.median(inter_dist)
-                    std_ic = np.std(inter_dist)
-
-                    if verbose:
-                        print(f'Average intracluster distance: {avg_ic}, stddev: {std_ic}, size: {siz_ic}')
-
-                    # This is the average distance between centers for all the k means realizations
-                    all_dist.append(avg_ic)
-
-                # Look at the distance of the i_c-th cluster in ONE k means realization to ALL the remaining k-mean realizations
-                for other_centers in centers[:][i_c+1::]:
-                    for other_center in other_centers:
-                        dist = t.distance(this_center, other_center)
-                        center_dist.append(dist)
-    
-                # Do try-except so that it is safe for the last step (comparing the last item with itself)
-                try:
-                    min_scatter = min(center_dist)
-                    minima.append(min_scatter)
-
-                    if verbose:
-                        print(f'{i_c}) Center: {this_center}, min scatter: {min_scatter}')
-                except:
-                    pass
+            wsc = 0.0
+            wsc_rand = 0.0 
         
-        minimum = np.mean(minima)
-        stddev = np.std(minima)
-        avgdist = np.median(all_dist)
-        print(f'k={n_clusters}, average center scatter={minimum}, stddev on center scatter: {stddev}, median interdist: {avgdist}, rescaled scatter: {minimum/avgdist}')
+            for i in range(0, n_clusters):
 
-        results[n_clusters-2, 0] = n_clusters
-        results[n_clusters-2, 1] = minimum
-        results[n_clusters-2, 2] = stddev
-        results[n_clusters-2, 3] = avgdist
-        results[n_clusters-2, 4] = minimum/avgdist
+                n = len(data[data['label'] == i])
+                c = centers[i]
+                c = np.reshape(c, (3, 1))
+                vals = data[data['label'] == i][cols_select].T.values - c
+                wsc += np.sum(np.sqrt((vals)**2.0))
 
-    print(results)
+                n_rand = len(data_rand[data_rand['label'] == i])
+                c_rand = centers_rand[i]
+                c_rand = np.reshape(c_rand, (3, 1))
+                vals_rand = data_rand[data_rand['label'] == i][cols_select].T.values - c_rand
+                wsc_rand += np.sum(np.sqrt((vals_rand)**2.0))
 
-    if f_out != None:
-        for i_col, col in enumerate(columns):
-            df_print[col] = results[:, i_col]
-        
-        print(df_print.head())
+            print(f'ROUND k={i+1}/{n_clusters}')
+            print(n_clusters, wsc/n_clusters, wsc_rand/n_clusters)
 
-        sns.lineplot(x=df_print[columns[0]], y=df_print[columns[1]])
-        sns.lineplot(x=df_print[columns[0]], y=df_print[columns[4]])
-        plt.legend(labels=['Center Scatter', 'Center Scatter Norm.'])
+            k_all.append(n_clusters)
+            k_std.append(wsc/n_clusters)
+            k_rand.append(wsc_rand/n_clusters)
+
+                #diffs_rand = data_rand[data_rand['label'] == i].values
+                #print(i, 'Std: ', len(diffs))
+                #print(i, 'Ran: ', len(diffs_rand))
+                #print(f'Cluster i has stddev: {stddev}')
+
+            data_rand.drop(labels='label', inplace=True, axis=1)
+            data.drop(labels='label', inplace=True, axis=1)
+
+        k_all = np.array(k_all)
+        k_std = np.array(k_std)
+        k_rand = np.array(k_rand)
+
+        print(k_all)
+        print(k_std)
+        print(k_rand)
+
+        #plt.plot(k_all, k_std)
+        #plt.plot(k_all, k_rand)
+        figname = 'output/gap_stats_' + prior + '_' + mode + '_' + str(grid) + '.png'
+        plt.xlabel('k')
+        plt.ylabel('WSCdata - WSCrand')
+        plt.plot(k_all, np.abs(k_rand-k_std))
+        plt.title('Gap Statistics (' + prior + ', ' + mode + ')')
+        plt.tight_layout()
+        plt.savefig(figname)
         plt.show()
 
-
-def check_distribution(values):
-    """
-        Quick sanity check on a distribution
-    """
-
-    std = np.std(values)
-    med = np.median(values)
-    mea = np.mean(values)
-
-    print(f'Mean: {mea}, median: {med}, stddev: {std}')
+        exit()
 
 
-@t.time_total
-def generate_random(data=None, grid=None, prior='flat', verbose=False):
-    """
-        Generate a random distribution of eigenvalues
-    """
 
-    print(f'Generating a random distribution of {grid}^3 points using a {prior} prior...')
-    n_pts = grid * grid * grid
-    rand_data = pd.DataFrame()
-
-    means = []
-    stddevs = []
-    new_col = []
-
-    for col in data.columns:
-        means.append(data[col].mean())
-        stddevs.append(data[col].std())
-        new_col.append('rand_' + col)
-
-    l2s = []
-    l3s = []
-
-    """
-    print(new_col)
-    print(means)
-    print(stddevs)
-    """
-
-    def rand_prior(prior=None, *args, **kwargs):
-        if prior == 'flat':
-            pass
-        
-        elif prior == 'gauss':
-            pts = np.random.normal(**kwargs)
-
-        return pts
-
-    l1s = rand_prior(prior=prior, loc=means[0], scale=stddevs[0], size=n_pts)
-
-    for l1 in l1s:
-        l2 = 1.0e+7
-        l3 = 1.0e+8
-
-        while (l1 < l2):
-            l2 = rand_prior(prior=prior, loc=means[1], scale=stddevs[1], size=1)
-
-        l2s.append(l2)
-
-        while (l2 < l3):
-            l3 = rand_prior(prior=prior, loc=means[2], scale=stddevs[2], size=1)
-                
-        l3s.append(l3)
- 
-    if verbose:
-        check_distribution(l1s)
-        check_distribution(l2s)
-        check_distribution(l3s)
-
-    rand_data[new_col[0]] = np.array(l1s)
-    rand_data[new_col[1]] = np.array(l2s)
-    rand_data[new_col[2]] = np.array(l3s)
-
-    return rand_data
-
-
-@t.time_total
-def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor = 10):
-
-    sil_score = []
-    ch_score = []
-    ent_score = []
-    ks = []
-
-    n_data = int(len(data) / rescale_factor)
-    data = data.sample(n_data, random_state = 1389)
-
-    for n_clusters in range(2, n_clusters_max+1):
-
-        ks.append(n_clusters)
+    else:
         kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
-        kmeans.fit(data)
-
-        X = data.values
-        labels = kmeans.fit_predict(X)
-
-        # This is the average score computed among the individual ones
-        s_score = silhouette_score(X, labels)  
-        c_score = calinski_harabasz_score(X, labels)
-        e_score = entropy(labels = labels, k = n_clusters)
-        print(data.head())
-        
-        print(f'Silhouette score for n_clusters = {n_clusters} is {s_score}, CH score is {c_score}, Entropy is {e_score}')
-
-        sil_score.append(s_score)
-        ch_score.append(c_score)
-        ent_score.append(e_score)
-        
-    plt.cla()
-    plt.clf()
-    plt.xlabel('k')
-    plt.ylabel('CH-score')
-    plt.plot(ks, ch_score, color='blue')
-    plt.savefig('output/ch_score.png')
-
-    plt.cla()
-    plt.clf()
-    plt.xlabel('k')
-    plt.ylabel('Silhouette-score')
-    plt.plot(ks, sil_score, color='blue')
-    plt.savefig('output/sil_score.png')
-    plt.cla()
-    plt.clf()
-
-    plt.rcParams.update({"text.usetex": True})
-    plt.cla()
-    plt.clf()
-    plt.xlabel('k')
-    plt.ylabel('Entropy')
-    plt.title(r'$H(k) = - \sum_{i=0}^{k}(n_i / n_{tot}) log(n_i / n_{tot})$')
-    plt.plot(ks, ent_score, color='blue')
-    plt.savefig('output/entropy_score.png')
-    plt.cla()
-    plt.clf()
-
-    print('Elbow Method score...')
-    model = KMeans()
-    visualizer = KElbowVisualizer(model, k=(2, n_clusters_max))
-
-    visualizer.fit(X)        
-    #visualizer.show()
-    #plt.show()
-
-    return kmeans
-
-
-@t.time_total
-def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
-    """
-        Plot the usual vweb using an input threshold and a given dataset
-    """
-
-    z_min = box * 0.5 - thick
-    z_max = box * 0.5 + thick
-
-    data = data[data['z'] > z_min]
-    data = data[data['z'] < z_max]
-
-    shift = box * 0.5
-    data['x'] = data['x'].apply(lambda x: x - shift)
-    data['y'] = data['y'].apply(lambda x: x - shift)
-
-    if box > 1e+4:
-        data['x'] = data['x'] / 1e+3
-        data['y'] = data['y'] / 1e+3
-        data['z'] = data['z'] / 1e+3
-        shift = shift / 1e+3
-
-    voids = data[data['l1'] < thresh]
-    sheet = data[(data['l2'] < thresh) & (data['l1'] > thresh)]
-    filam = data[(data['l2'] > thresh) & (data['l3'] < thresh)]
-    knots = data[data['l3'] > thresh]
-
-    fontsize = 20
-
-    if grid == 32:
-        size = 40
-    elif grid == 64:
-        size = 15
-    elif grid == 128:
-        size = 5
-    elif grid == 256:
-        size = 3
-
-    print('Plotting web with lambda threshold ')
-    # Plot the eigenvaule threshold based V-Web
-    plt.figure(figsize=(10, 10))
-    plt.xlim([-shift, shift])
-    plt.ylim([-shift, shift])
-    plt.title('$\lambda_{thr} = $' + str(thresh), fontsize=fontsize)
-    plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
-
-    plt.scatter(voids['x'], voids['y'], c='lightgrey', s=size, marker='s')
-    plt.scatter(sheet['x'], sheet['y'], c='grey', s=size, marker='s')
-    plt.scatter(filam['x'], filam['y'], c='black', s=size, marker='s')
-    plt.scatter(knots['x'], knots['y'], c='red', s=size, marker='s')
-
-    # Save file
-    f_out = fout + '_' + str(thresh).replace('.','') + '.png'
-    plt.tight_layout()
-    print('Saving fig to ', f_out)
-    plt.savefig(f_out)
-    plt.cla()
-    plt.clf()
-
-    # Plot densities
-    palette="YlOrBr"
-    plt.figure(figsize=(10, 10))
-    plt.xlim([-shift, shift])
-    plt.ylim([-shift, shift])
-    plt.title('$\log_{10}\Delta_m', fontsize=fontsize)
-    sns.scatterplot(data['x'], data['y'], hue=np.log10(data['dens']), marker='s', s=size*3, legend = False, palette=palette)
-
-    # Override seaborn defaults
-    plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
-    plt.tight_layout()
-
-    # Save file
-    f_out = fout + '_dens.png'
-    plt.savefig(f_out)
-    plt.cla()
-    plt.clf()
-
-
-   
-"""
-    MAIN PROGRAM STARTS
-"""
-
-# Program settings
-normalize = False
-
-evalMetrics = True
-
-plotNew = False
-plotStd = False
-plot3d = False
-plotKLV = False
-plotEVs = False
-plotLambdas = False
-
-file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
-web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
-#web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
-#web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
-
-#web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
-#web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
-
-#box = 500.0e+3; thick = 7.0e+3
-#box = 500.0; thick = 5.0
-box = 100.0; thick = 2.0
-
-web_df = pd.read_csv(file_base + web_file)
-
-#plot_new_form(data=web_df, f_out='output/evs_new_form')
-
-n_clusters = 10
-n_init = 1
-
-if normalize == True:
-    #norm = 1/1024.0 
-    norm = 1.0e-3   # kpc to Mpc
-    print('Norm: ', norm) 
-
-    web_df['l1'] = web_df['l1'] / norm
-    web_df['l2'] = web_df['l2'] / norm
-    web_df['l3'] = web_df['l3'] / norm
-
-
-if plotStd == True: 
-
-    f_out = 'output/kmeans_oldvweb' + str_grid
-    #norm = web_df['l1'].max()
-
-    for thresh in [0.0, 0.1]:
-        plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick)
-
-web_df['logdens'] = np.log10(web_df['dens'])
-#print(web_df.head())
-
-cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
-#cols_select = ['l1', 'l2', 'l3', 'dens']; vers = 'd'; str_kmeans = r'$k$-means $\lambda$s, \Delta_m'
-#cols_select = ['l1', 'l2', 'l3', 'logdens']; vers = 'ld'; str_kmeans = r'$k$-means $\lambda$s, $\log_{10}\Delta_m$'
-#cols_select = ['l1', 'l2', 'l3', 'dens', 'Vx', 'Vy', 'Vz']; vers = 'd_vx'
-
-web_ev_df = web_df[cols_select]
-
-if evalMetrics == True:
-
-    n_ks = 10
-    rescale = 1
-    f_out = 'output/kmeans_stability' + str_grid
-
-    #kmeans = evaluate_metrics(data=web_ev_df, n_clusters_max=n_clusters, n_init=n_init)
-    #kmeans_stability(data=web_ev_df, n_clusters_max=n_clusters, n_ks=n_ks, rescale_factor=rescale, f_out=f_out)
-    
-    grid = 32
-    generate_random(data=web_ev_df, grid=grid, prior='gauss')
-
-    exit()
-
-else:
-    kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
-    kmeans.fit(web_ev_df)
+        kmeans.fit(web_ev_df)
 
 centers = kmeans.cluster_centers_
 web_df['env'] = kmeans.labels_

@@ -26,13 +26,15 @@ def time_total(function):
     @functools.wraps(function)
     def wrapper(*args, **kwargs):
         t0 = time.time()
-        function(*args, **kwargs)
+        f = function(*args, **kwargs)
         t1 = time.time()
 
         dt = t1 - t0
         print(f'Function {function.__name__!r} took {dt:.4f} seconds to execute')
+        return f
 
     return wrapper
+
 
 def distance(v0, v1):
 
