@@ -17,9 +17,7 @@ import numpy as np
 import tools as t
 
 
-
 if __name__ == "__main__":
-
     """
         MAIN PROGRAM - compute K-Means
     """
@@ -110,11 +108,11 @@ if __name__ == "__main__":
         prior='lognorm'
         #prior='gauss'
         #prior='flat'
-        #mode='ordered'
-        mode='simple'
-        data_rand = wt.generate_random(data=data, grid=grid, prior=prior, verbose=True, mode=mode)
+        mode='ordered'
+        #mode='simple'
+        #data_rand = wt.generate_random(data=data, grid=grid, prior=prior, verbose=True, mode=mode)
         #data_rand = wt.generate_random(data=data, grid=grid, prior='gauss', verbose=True, mode='ordered')
-        print(data_rand.head())
+        #print(data_rand.head())
         #data_rand.to_csv('output/random_web_128.txt', index=False)
         #data_rand = pd.read_csv('output/random_web_128.txt')
         #print(data_rand.head())
@@ -122,7 +120,11 @@ if __name__ == "__main__":
         k_all = []
         k_std = []
         k_rand = []
+        #wt.evaluate_metrics(data=data_rand, n_clusters_max=10, n_init=0, rescale_factor=1, visualize=True, elbow=True)
+        wt.evaluate_metrics(data=data, n_clusters_max=10, n_init=0, rescale_factor=1, visualize=True, elbow=True)
+#def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor=10, visualize=False, elbow=True):
 
+        n_clusters_tot = 0
         for n_clusters in n_clusters_tot:
             kmeans = KMeans(n_clusters=n_clusters, n_init=n_init)
             kmeans.fit(data)
@@ -190,7 +192,6 @@ if __name__ == "__main__":
         exit()
 
 
-
     else:
         kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
         kmeans.fit(web_ev_df)
@@ -215,8 +216,6 @@ elif n_clusters == 6:
     envirs = ['void', 'sheet', 'wall', 'filament', 'clump', 'knot']
 
 vers = vers + '_k' + str(n_clusters)
-out_evs_new = 'output/kmeans_new_' + vers
-out_evs_3d = 'output/kmeans_3d_' + vers
 out_evs_dist = 'output/kmeans_vweb_' + vers
 out_dens_dist = 'output/kmeans_dens_' + vers
 out_web_slice = 'output/kmeans_web_lv_' + vers
@@ -251,111 +250,21 @@ for i in range(0, n_clusters):
 
 cols = []
 
-if plotNew == True:
-    for il, cl in enumerate(kmeans.labels_):
-        cols.append(colors_sort[cl])
-
-    horizont = [web_ev_df['l3'].min(), web_ev_df['l1'].max()]
-    vertical = [web_ev_df['l2'].min(), web_ev_df['l2'].max()]
-    diagonal = [web_ev_df['l3'].min(), web_ev_df['l1'].max()]
-    zeros = [0.0, 0.0]
-
-    print('Plotting in new format...')
-    plt.plot(horizont, zeros, color = 'black')
-    plt.plot(zeros, vertical, color = 'black')
-    plt.plot(diagonal, diagonal, color = 'blue')
-
-    plt.scatter(web_ev_df['l1'], web_ev_df['l2'], c = cols, marker = 'v') #, size = size1)
-    plt.scatter(web_ev_df['l3'], web_ev_df['l2'], c = cols, marker = '+') #, size = size2)
-    plt.xlabel(r'$\lambda_1, \lambda_3$')
-    plt.ylabel(r'$\lambda_2$')
-    plt.tight_layout()
-    f_out = out_evs_new + str_grid + '.png'
-    plt.savefig(f_out)
-    print('Done.')
- 
-cols = []
-
-if plot3d == True:
-    for il, cl in enumerate(kmeans.labels_):
-        cols.append(colors_sort[cl])
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(web_ev_df['l1'], web_ev_df['l2'], web_ev_df['l3'], c = cols)
-    ax.set_xlabel(r'$\lambda_1$')
-    ax.set_ylabel(r'$\lambda_2$')
-    ax.set_zlabel(r'$\lambda_3$')
-    plt.tight_layout()
-    f_out = out_evs_3d + str_grid + '.png'
-    plt.savefig(f_out)
-    #plt.show(block = False)
-    #plt.pause(3)
-    #plt.close()
-
-if plotEVs == True:
-    maxrange = n_clusters
-else:
-    maxrange = 0
-
-#for i in range(0, maxrange):
-
-@t.time_total
-def plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None, grid=None): 
-    """
-        Plot the three eigenvalues distributions for a given environment type
-    """
-
-    evs = data[data['env'] == env_type]
-
-    # Only plot the first three axes i.e. the eigenvalues
-    for col in cols_select[0:3]:
-        sns.distplot(evs_df[col])
     
-    env_str = str(env_type)
-    file_out = out_base + env_str + str_grid + '_evs.png'
+out_evs_new = 'output/kmeans_new_' + vers
+f_out = out_evs_new + str_grid + '.png'
+wt.plot_new(labels=kmeans.labels_, data=web_ev_df, f_out=f_out)
 
-    print(f'Plotting eigenvalues per environment type to: {file_out}')
-    fontsize=10
+out_evs_3d = 'output/kmeans_3d_' + vers
+f_out = out_evs_3d + str_grid + '.png'
+wt.plot3d(labels=kmeans.labels_, data=web_ev_df, f_out=f_out)
 
-    # Plot the three eigenvalues
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
-    plt.title(envirs_sort[i] + ' $k=$' + str(n_clusters), fontsize=fontsize)
-    plt.xlabel(r'$\lambda_3, \lambda_2, \lambda_2$', fontsize=fontsize)
-
-    if grid == 32:
-        plt.xlim(-0.5, 0.5)
-    elif grid == 128:
-        plt.xlim(-1.5, 3.0)
-
-    plt.savefig(f_out)
-    plt.clf()
-    plt.cla()
-
-    # Now plot the delta distribution
-    if grid == 32:
-        plt.xlim(-1, 1)
-    elif grid == 128:
-        plt.xlim(-2, 2)
-
-    nbins = 100
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
-    deltam = '%.3f' % deltas[i]
-    plt.title(env_str + r': $ \bar \Delta_m = $' + deltam + ' $, k=$' + str(n_clusters))
-    sns.distplot(np.log10(evs['dens']), bins=nbins)
-
-    plt.xlabel(r'$\log_{10}\Delta _m$', fontsize=fontsize)
-    file_out = out_base + env_str + str_grid + '_dens.png'
-    print(f'Plotting density per environment type to: ', file_out)
-    plt.savefig(file_out)
-    plt.clf()
-    plt.cla()
-
+    # TODO there should be some loop on the environments here
+env_type = ''
+f_out_base = ''
+wt.plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None, grid=None) 
 
 #if plotLambdas == True:
-
 #def plot_lambda_distribution(data=None, grid=None, base_out=None, envirs=None):
 #def plot_local_volume_density_slice(data=None, box=100, file_out=None, title=None):
 

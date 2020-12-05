@@ -18,6 +18,110 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
+    
+def plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None, grid=None): 
+    """
+        Plot the three eigenvalues distributions for a given environment type
+    """
+
+    evs = data[data['env'] == env_type]
+
+    # Only plot the first three axes i.e. the eigenvalues
+    for col in cols_select[0:3]:
+        sns.distplot(evs_df[col])
+    
+    file_out = out_base + '_evs.png'
+
+    print(f'Plotting eigenvalues per environment type to: {file_out}')
+    fontsize=10
+
+    # Plot the three eigenvalues
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    plt.title(envirs_sort[i] + ' $k=$' + str(n_clusters), fontsize=fontsize)
+    plt.xlabel(r'$\lambda_3, \lambda_2, \lambda_2$', fontsize=fontsize)
+
+    if grid == 32:
+        plt.xlim(-0.5, 0.5)
+    elif grid == 128:
+        plt.xlim(-1.5, 3.0)
+
+    plt.savefig(f_out)
+    plt.clf()
+    plt.cla()
+
+    # Now plot the delta distribution
+    if grid == 32:
+        plt.xlim(-1, 1)
+    elif grid == 128:
+        plt.xlim(-2, 2)
+
+    nbins = 100
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    deltam = '%.3f' % deltas[i]
+    plt.title(env_str + r': $ \bar \Delta_m = $' + deltam + ' $, k=$' + str(n_clusters))
+    sns.distplot(np.log10(evs['dens']), bins=nbins)
+
+    plt.xlabel(r'$\log_{10}\Delta _m$', fontsize=fontsize)
+    file_out = out_base + '_dens.png'
+    print(f'Plotting density per environment type to: {file_out}')
+    plt.savefig(file_out)
+    plt.clf()
+    plt.cla()
+
+
+def plot_new_format(data=None, f_out=None, labels=None):
+    """
+        Plot the point distribution according to Yehuda's new suggestion
+    """
+
+    for il, cl in enumerate(labels):
+        cols.append(colors_sort[cl])
+
+    horizont = [data['l3'].min(), data['l1'].max()]
+    vertical = [data['l2'].min(), data['l2'].max()]
+    diagonal = [data['l3'].min(), data['l1'].max()]
+    zeros = [0.0, 0.0]
+
+    print('Plotting in new format...')
+    plt.plot(horizont, zeros, color = 'black')
+    plt.plot(zeros, vertical, color = 'black')
+    plt.plot(diagonal, diagonal, color = 'blue')
+
+    plt.scatter(web_ev_df['l1'], web_ev_df['l2'], c = cols, marker = 'v') 
+    plt.scatter(web_ev_df['l3'], web_ev_df['l2'], c = cols, marker = '+') 
+    plt.xlabel(r'$\lambda_1, \lambda_3$')
+    plt.ylabel(r'$\lambda_2$')
+    plt.tight_layout()
+    plt.savefig(f_out)
+    print('Done.')
+ 
+
+def plot3d(labels=None, data=None, f_out=None):
+    """
+        Plot a 3d distribution of points
+        - labels can be kmeans.labels_ , it is an integer describing the class each point belongs to
+        - data is the v-web eigenvalues dataframe
+    """
+
+    cols = []
+        
+    for il, cl in enumerate(labels):
+        cols.append(colors_sort[cl])
+
+    print('Plotting in 3D particle distribution...')
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(data['l1'], data['l2'], data['l3'], c = cols)
+    ax.set_xlabel(r'$\lambda_1$')
+    ax.set_ylabel(r'$\lambda_2$')
+    ax.set_zlabel(r'$\lambda_3$')
+    plt.tight_layout()
+    plt.savefig(f_out)
+    plt.clf()
+    plt.cla()
+    print('Done.')
 
 
 def wss(data=None, centers=None, labels=None):
@@ -110,75 +214,86 @@ def generate_random(data=None, grid=None, prior='flat', verbose=False, mode='sim
 
 
 @t.time_total
-def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor=10, visualize=False):
+def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor=10, visualize=False, elbow=True):
     """
         Evaluate different metrics to estimate the best k for the cluster number
     """
 
-    sil_score = []
-    ch_score = []
-    ent_score = []
-    ks = []
+    if elbow == False:
+        sil_score = []
+        ch_score = []
+        ent_score = []
+        ks = []
 
-    n_data = int(len(data) / rescale_factor)
-    data = data.sample(n_data, random_state = 1389)
+        n_data = int(len(data) / rescale_factor)
+        data = data.sample(n_data, random_state = 1389)
 
-    for n_clusters in range(2, n_clusters_max+1):
+        for n_clusters in range(2, n_clusters_max+1):
 
-        ks.append(n_clusters)
-        kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
-        kmeans.fit(data)
+            ks.append(n_clusters)
+            kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
+            kmeans.fit(data)
 
+            X = data.values
+            labels = kmeans.fit_predict(X)
+
+            # This is the average score computed among the individual ones
+            s_score = silhouette_score(X, labels)  
+            c_score = calinski_harabasz_score(X, labels)
+            e_score = entropy(labels = labels, k = n_clusters)
+            print(data.head())
+        
+            print(f'Silhouette score for n_clusters = {n_clusters} is {s_score}, CH score is {c_score}, Entropy is {e_score}')
+
+            sil_score.append(s_score)
+            ch_score.append(c_score)
+            ent_score.append(e_score)
+        
+        plt.cla()
+        plt.clf()
+        plt.xlabel('k')
+        plt.ylabel('CH-score')
+        plt.plot(ks, ch_score, color='blue')
+        plt.savefig('output/ch_score.png')
+
+        plt.cla()
+        plt.clf()
+        plt.xlabel('k')
+        plt.ylabel('Silhouette-score')
+        plt.plot(ks, sil_score, color='blue')
+        plt.savefig('output/sil_score.png')
+        plt.cla()
+        plt.clf()
+
+        plt.rcParams.update({"text.usetex": True})
+        plt.cla()
+        plt.clf()
+        plt.xlabel('k')
+        plt.ylabel('Entropy')
+        plt.title(r'$H(k) = - \sum_{i=0}^{k}(n_i / n_{tot}) log(n_i / n_{tot})$')
+        plt.plot(ks, ent_score, color='blue')
+        plt.savefig('output/entropy_score.png')
+        plt.cla()
+        plt.clf()
+
+    if elbow == True:
+        print('Elbow Method score...')
+        model = KMeans()
         X = data.values
-        labels = kmeans.fit_predict(X)
+        visualizer = KElbowVisualizer(model, k=(2, n_clusters_max), timings=False)
 
-        # This is the average score computed among the individual ones
-        s_score = silhouette_score(X, labels)  
-        c_score = calinski_harabasz_score(X, labels)
-        e_score = entropy(labels = labels, k = n_clusters)
-        print(data.head())
-        
-        print(f'Silhouette score for n_clusters = {n_clusters} is {s_score}, CH score is {c_score}, Entropy is {e_score}')
+        if visualize:
+            visualizer.fit(X)        
+            visualizer.show()
+            plt.show()
 
-        sil_score.append(s_score)
-        ch_score.append(c_score)
-        ent_score.append(e_score)
-        
-    plt.cla()
-    plt.clf()
-    plt.xlabel('k')
-    plt.ylabel('CH-score')
-    plt.plot(ks, ch_score, color='blue')
-    plt.savefig('output/ch_score.png')
+        print('Elbow Method score for Calinski-Harabasz...')
+        visualizer = KElbowVisualizer(model, k=(2, n_clusters_max), timings=False, metric='calinski_harabasz', locate_elbow=True)
 
-    plt.cla()
-    plt.clf()
-    plt.xlabel('k')
-    plt.ylabel('Silhouette-score')
-    plt.plot(ks, sil_score, color='blue')
-    plt.savefig('output/sil_score.png')
-    plt.cla()
-    plt.clf()
-
-    plt.rcParams.update({"text.usetex": True})
-    plt.cla()
-    plt.clf()
-    plt.xlabel('k')
-    plt.ylabel('Entropy')
-    plt.title(r'$H(k) = - \sum_{i=0}^{k}(n_i / n_{tot}) log(n_i / n_{tot})$')
-    plt.plot(ks, ent_score, color='blue')
-    plt.savefig('output/entropy_score.png')
-    plt.cla()
-    plt.clf()
-
-    print('Elbow Method score...')
-    model = KMeans()
-    visualizer = KElbowVisualizer(model, k=(2, n_clusters_max))
-
-    if visualize:
-        visualizer.fit(X)        
-        visualizer.show()
-        plt.show()
+        if visualize:
+            visualizer.fit(X)        
+            visualizer.show()
+            plt.show()
 
     return kmeans
 
