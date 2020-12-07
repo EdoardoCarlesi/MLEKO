@@ -38,6 +38,8 @@ if __name__ == "__main__":
     #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
     #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
     web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+    #web_file = 'vweb_25_15.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+    #web_file = 'vweb_00_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128; normalize = True
 
     #web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
     #web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
@@ -55,7 +57,6 @@ if __name__ == "__main__":
 
     # Check out that the vweb coordinates should be in Mpc units
     if normalize == True:
-        #norm = 1/1024.0 
         norm = 1.0e-3   # kpc to Mpc
         print('Norm: ', norm) 
 
@@ -81,6 +82,21 @@ if __name__ == "__main__":
 
     data = web_df[cols_select]
 
+    for col in cols_select:
+        med = np.median(data[col])
+        std = np.std(data[col])
+
+        str_print = '%.3f \pm %.3f & ' % (med, std)
+        print(str_print)
+        print('')
+
+        thresh = [0.0, 0.1, 0.2]
+
+    for th in thresh:
+        wt.std_vweb(data=data, thresh=th)
+
+
+'''
     if doYehuda:
 
         n_clusters_tot = [2, 3, 4, 5, 6, 7, 8, 9, 10] 
@@ -250,7 +266,7 @@ for i in range(0, n_clusters):
 
 cols = []
 
-    
+   
 out_evs_new = 'output/kmeans_new_' + vers
 f_out = out_evs_new + str_grid + '.png'
 wt.plot_new(labels=kmeans.labels_, data=web_ev_df, f_out=f_out)
@@ -263,6 +279,8 @@ wt.plot3d(labels=kmeans.labels_, data=web_ev_df, f_out=f_out)
 env_type = ''
 f_out_base = ''
 wt.plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None, grid=None) 
+
+'''
 
 #if plotLambdas == True:
 #def plot_lambda_distribution(data=None, grid=None, base_out=None, envirs=None):

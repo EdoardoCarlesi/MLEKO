@@ -299,6 +299,29 @@ def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor=1
 
 
 @t.time_total
+def std_vweb(data=None, thresh=None): 
+    """
+        Volume filling fractions for the different kinds of nodes   
+    """
+
+    voids = data[data['l1'] < thresh]
+    sheet = data[(data['l2'] < thresh) & (data['l1'] > thresh)]
+    filam = data[(data['l2'] > thresh) & (data['l3'] < thresh)]
+    knots = data[data['l3'] > thresh]
+
+    ntot = len(data)
+    nv = len(voids)
+    ns = len(sheet)
+    nf = len(filam)
+    nk = len(knots)
+
+    print('Volume filling fractions for lambda_th= ', thresh)
+    str_print = '$ %.3f $ & $ %.3f $ & $ %.3f $ & $ %.3f$ ' % (nv/ntot, ns/ntot, nf/ntot, nk/ntot)
+    print(str_print)
+
+
+
+@t.time_total
 def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
     """
         Plot the usual vweb using an input threshold and a given dataset
