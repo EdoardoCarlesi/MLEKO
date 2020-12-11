@@ -298,28 +298,95 @@ def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor=1
     return kmeans
 
 
-@t.time_total
-def std_vweb(data=None, thresh=None): 
-    """
-        Volume filling fractions for the different kinds of nodes   
-    """
+def check_env(l1, l2, l3, thresh=None):
+    """ Return the env type given three eigenvalues and a threshold value """
 
-    voids = data[data['l1'] < thresh]
-    sheet = data[(data['l2'] < thresh) & (data['l1'] > thresh)]
-    filam = data[(data['l2'] > thresh) & (data['l3'] < thresh)]
-    knots = data[data['l3'] > thresh]
+    if l1 < thresh:
+        return 0
+    if l1 > thresh and l2 < thresh:
+        return 1
+    if l2 > thresh and l3 < thresh:
+        return 2
+    if l3 > thresh:
+        return 3
+
+
+def std_vweb(data=None, thresh=None): 
+    """ Volume filling fractions for the different kinds of nodes   """
+
+    cols = ['l1', 'l2', 'l3']
+
+    data['env'] = data[cols].apply(lambda x: check_env(*x, thresh=thresh), axis=1)
 
     ntot = len(data)
-    nv = len(voids)
-    ns = len(sheet)
-    nf = len(filam)
-    nk = len(knots)
+    env_names = ['void', 'sheet', 'filament', 'knot']
+    
+    for env in [0, 1, 2, 3]:
+        nv = len(data['env'] == env)
+        d_med = np.median(data[data['env'] == env]['dens'])
+        f_vol = len(data[data['env'] == env]) / nv
+         
+        str_part = env_names[env] + ' & '
+        for col in cols:
+            v_std = np.std(data[data['env'] == env][col])
+            v_med = np.median(data[data['env'] == env][col])
+            
+            str_part += '$%.3f \pm %.3f $ & ' % (v_med, v_std)
 
-    print('Volume filling fractions for lambda_th= ', thresh)
-    str_print = '$ %.3f $ & $ %.3f $ & $ %.3f $ & $ %.3f$ ' % (nv/ntot, ns/ntot, nf/ntot, nk/ntot)
-    print(str_print)
+        str_df = ' $%.3f$ & $%.3f$ \\\ ' % (d_med, f_vol) 
+        str_env = str_part + str_df
+        print(str_env)
+
+    print('\hline')
+
+    return data
 
 
+def compare_vweb_kmeans(vweb=None):
+    """ Compare the fraction of volume occupied by different environmental types in the usual vweb classification and in kmeans """
+
+    shared = []
+
+    diffs = vweb['env'].values - vweb['envk'].values
+    diffs_inds = np.where(diffs == 0)
+
+    n_all = len(vweb)
+    print(f'Global shared values: {len(diffs[diffs_inds])/n_all}')
+    
+    for env in [0, 1, 2, 3]:
+        n_tot = len(vweb[vweb['envk'] == env])
+        tmp = vweb[vweb['env'] == env]
+        n_shared = len(tmp[tmp['envk'] == env])
+        
+        print(f'Env: {env}, Tot: {n_tot}, Shared: {n_shared}, Perc: {n_shared/n_tot}')
+
+    for env in [0, 1, 2, 3]:
+        n_tot = len(vweb[vweb['env'] == env])
+        tmp = vweb[vweb['envk'] == env]
+        n_shared = len(tmp[tmp['env'] == env])
+        
+        print(f'(inverse check) Env: {env}, Tot: {n_tot}, Shared: {n_shared} Perc: {n_shared/n_tot}')
+
+
+def order_kmeans(data=None, nk=4):    
+    """ Rename the eigenvalue labels by increasing matter density """
+    
+    ds = []
+
+    for env in range(0, nk):
+        d_med = np.median(data[data['envk_std'] == env]['dens'].values)
+        ds.append(d_med)
+ 
+    ds_sort = np.sort(ds)
+    id_order = []
+
+    for i in range(0, nk):
+        index = np.where(ds_sort == ds[i])
+        id_order.append(index[0][0])
+    
+    data['envk'] = data['envk_std'].apply(lambda x: id_order[x])
+
+    return data
 
 @t.time_total
 def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):

@@ -80,21 +80,32 @@ if __name__ == "__main__":
     #cols_select = ['l1', 'l2', 'l3', 'logdens']; vers = 'ld'; str_kmeans = r'$k$-means $\lambda$s, $\log_{10}\Delta_m$'
     #cols_select = ['l1', 'l2', 'l3', 'dens', 'Vx', 'Vy', 'Vz']; vers = 'd_vx'
 
-    data = web_df[cols_select]
+    #data = web_df[cols_select]
+
+    print('Running kmeans...')
+    n_clusters = 4
+    n_init = 101
+    kmeans = KMeans(n_clusters=n_clusters, n_init=n_init)
+    kmeans.fit(web_df[cols_select])
+    print('Done.')
+
+    web_df['envk_std'] = kmeans.labels_
+    web_df = wt.order_kmeans(data=web_df)
 
     for col in cols_select:
-        med = np.median(data[col])
-        std = np.std(data[col])
+        med = np.median(web_df[col])
+        std = np.std(web_df[col])
 
         str_print = '%.3f \pm %.3f & ' % (med, std)
-        print(str_print)
-        print('')
+        #print(str_print)
+        #print('')
 
         thresh = [0.0, 0.1, 0.2]
 
     for th in thresh:
-        wt.std_vweb(data=data, thresh=th)
-
+        web_df = wt.std_vweb(data=web_df, thresh=th)
+        
+        wt.compare_vweb_kmeans(vweb=web_df)
 
 '''
     if doYehuda:
