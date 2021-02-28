@@ -17,6 +17,23 @@ import numpy as np
 import tools as t
 
 
+def plot_cmp():
+    
+    cmp_file = 'output/vweb_std.dat'
+    data = pd.read_csv(cmp_file)
+
+    print(data.head())
+    print(data.info())
+
+    cols = ['eq1', 'eq2', 'eq3', 'eq4']
+
+    for col in cols:
+        data[col] = float(data[col].values)
+
+    print(data['avg'])
+
+
+
 if __name__ == "__main__":
     """
         MAIN PROGRAM - compute K-Means
@@ -34,10 +51,15 @@ if __name__ == "__main__":
     plotEVs = False
     plotLambdas = False
 
-    file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
+    plot_cmp()
+
+    '''
+    #file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
+    file_base = '/home/edoardo/CLUES/DATA/Vweb/FullBox/'
     #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
     #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
-    web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+    #web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+    web_file = 'vweb_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_25_15.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_00_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128; normalize = True
 
@@ -100,12 +122,15 @@ if __name__ == "__main__":
         #print(str_print)
         #print('')
 
-        thresh = [0.0, 0.1, 0.2]
+
+    thresh = [i * 0.02 for i in range(0, 30)]
 
     for th in thresh:
         web_df = wt.std_vweb(data=web_df, thresh=th)
         
-        wt.compare_vweb_kmeans(vweb=web_df)
+        wt.compare_vweb_kmeans(vweb=web_df, l=th)
+    '''
+
 
 '''
     if doYehuda:

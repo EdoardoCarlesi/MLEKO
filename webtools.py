@@ -335,37 +335,45 @@ def std_vweb(data=None, thresh=None):
 
         str_df = ' $%.3f$ & $%.3f$ \\\ ' % (d_med, f_vol) 
         str_env = str_part + str_df
-        print(str_env)
+        #print(str_env)
 
-    print('\hline')
+    #print('\hline')
 
     return data
 
 
-def compare_vweb_kmeans(vweb=None):
+def compare_vweb_kmeans(vweb=None, l=0.0):
     """ Compare the fraction of volume occupied by different environmental types in the usual vweb classification and in kmeans """
 
     shared = []
+    n_env_shared = np.zeros(4)
+    tot_env = np.zeros(4)
 
     diffs = vweb['env'].values - vweb['envk'].values
     diffs_inds = np.where(diffs == 0)
 
     n_all = len(vweb)
-    print(f'Global shared values: {len(diffs[diffs_inds])/n_all}')
+    print(f'Global shared values: {l} {len(diffs[diffs_inds])/n_all}')
     
-    for env in [0, 1, 2, 3]:
+    for i, env in enumerate([0, 1, 2, 3]):
         n_tot = len(vweb[vweb['envk'] == env])
         tmp = vweb[vweb['env'] == env]
         n_shared = len(tmp[tmp['envk'] == env])
         
-        print(f'Env: {env}, Tot: {n_tot}, Shared: {n_shared}, Perc: {n_shared/n_tot}')
+        n_env_shared[i] = n_shared
+        tot_env[i] = n_tot
+
+        #print(f'Env: {env}, Tot: {n_tot}, Shared: {n_shared}, Perc: {n_env_shared/tot_env}')
+
+    average = np.mean(n_env_shared/tot_env)
+    print(f'Global shared values: {l} {len(diffs[diffs_inds])/n_all} {average} {n_env_shared/tot_env}')
 
     for env in [0, 1, 2, 3]:
         n_tot = len(vweb[vweb['env'] == env])
         tmp = vweb[vweb['envk'] == env]
         n_shared = len(tmp[tmp['env'] == env])
         
-        print(f'(inverse check) Env: {env}, Tot: {n_tot}, Shared: {n_shared} Perc: {n_shared/n_tot}')
+        #print(f'(inverse check) Env: {env}, Tot: {n_tot}, Shared: {n_shared} Perc: {n_shared/n_tot}')
 
 
 def order_kmeans(data=None, nk=4):    

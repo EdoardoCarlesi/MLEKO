@@ -15,7 +15,7 @@ import time
 import pandas as pd
 import numpy as np
 import glob, os
-import cv2
+#import cv2
 
 
 def time_total(function):
