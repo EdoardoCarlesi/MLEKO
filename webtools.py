@@ -446,6 +446,7 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
 
+    size = 30
     plt.scatter(voids['x'], voids['y'], c='lightgrey', s=size, marker='s')
     plt.scatter(sheet['x'], sheet['y'], c='grey', s=size, marker='s')
     plt.scatter(filam['x'], filam['y'], c='black', s=size, marker='s')
@@ -460,12 +461,17 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
     plt.clf()
 
     # Plot densities
-    palette="YlOrBr"
+    #palette="YlOrBr"
+    #palette="PuRd"
+    palette="Greys"
+    color_fac = 50.0
+    #size = 100
     plt.figure(figsize=(10, 10))
     plt.xlim([-shift, shift])
     plt.ylim([-shift, shift])
     plt.title('$\log_{10}\Delta_m', fontsize=fontsize)
-    sns.scatterplot(data['x'], data['y'], hue=np.log10(data['dens']), marker='s', s=size*3, legend = False, palette=palette)
+    #sns.scatterplot(data['x'], data['y'], hue=np.log10(10 * data['dens']), marker='s', s=size, legend = False, palette=palette)
+    plt.scatter(data['x'], data['y'], c=color_fac * np.log10(data['dens']), marker='s', s=size, cmap=palette)
 
     # Override seaborn defaults
     plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
@@ -476,6 +482,7 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
 
     # Save file
     f_out = fout + '_dens.png'
+    print('Saving fig to ', f_out)
     plt.savefig(f_out)
     plt.cla()
     plt.clf()

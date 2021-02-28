@@ -20,19 +20,42 @@ import tools as t
 def plot_cmp():
     
     cmp_file = 'output/vweb_std.dat'
-    data = pd.read_csv(cmp_file)
+    data = pd.read_csv(cmp_file, dtype=float)
 
-    print(data.head())
+    print(data.head(50))
     print(data.info())
 
     cols = ['eq1', 'eq2', 'eq3', 'eq4']
-
+    avg = np.zeros(len(data))
+    #data['avg'] = data[cols].apply(lambda x: np.sum(x))
+    #print(data['avg'])
     for col in cols:
-        data[col] = float(data[col].values)
+        for i in range(0, len(data)):
+            avg[i] += data[col].values[i]
 
-    print(data['avg'])
+    avg[:] = avg[:] / 4.0
+
+    data['avg'] = avg
+
+    avgMax = data['avg'].max()
+    totMax = data['tot'].max()
+    lAvgMax = data[data['avg'] == avgMax]['lambda']
+    lTotMax = data[data['tot'] == totMax]['lambda']
+    print('AvgMax: ', lAvgMax)
+    print('TotMax: ', lTotMax)
 
 
+    plt.plot(data['lambda'].values, data['tot'].values, color='red', label='tot')
+    plt.plot(data['lambda'].values, data['avg'].values, color='black', label='avg')
+    plt.legend()
+    plt.xlabel('lambda')
+    plt.ylabel('% matching cells')
+    plt.tight_layout()
+    #plt.show()
+    plt.savefig('output/kmeans_threshold_cmp.png')
+    plt.cla()
+    plt.clf()
+    plt.close()
 
 if __name__ == "__main__":
     """
@@ -45,7 +68,7 @@ if __name__ == "__main__":
     doYehuda = False
 
     plotNew = False
-    plotStd = False
+    plotStd = True
     plot3d = False
     plotKLV = False
     plotEVs = False
@@ -53,7 +76,6 @@ if __name__ == "__main__":
 
     plot_cmp()
 
-    '''
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
     file_base = '/home/edoardo/CLUES/DATA/Vweb/FullBox/'
     #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
@@ -72,10 +94,11 @@ if __name__ == "__main__":
 
     web_df = pd.read_csv(file_base + web_file)
 
-    n_clusters = 10
+    n_clusters = 4
     n_init = 1
 
-    threshold_list = [0.0, 0.1, 0.2]
+    #threshold_list = [0.0, 0.1, 0.2]
+    threshold_list = [0.22, 0.26]
 
     # Check out that the vweb coordinates should be in Mpc units
     if normalize == True:
@@ -88,12 +111,15 @@ if __name__ == "__main__":
 
     if plotStd == True: 
 
-        f_out = 'output/kmeans_oldvweb' + str_grid
+        #f_out = 'output/kmeans_oldvweb' + str_grid
         #norm = web_df['l1'].max()
 
-        for threshold_lambda in threshold_list:
+        for thresh in threshold_list:
+            print('Plotting standard web for threshold: ', thresh)
+            f_out = 'output/kmeans_oldvweb' + str_grid + '_l' + str(thresh)
             wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick)
 
+    '''
     #web_df['logdens'] = np.log10(web_df['dens'])
     #print(web_df.head())
 
@@ -247,7 +273,10 @@ if __name__ == "__main__":
     else:
         kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
         kmeans.fit(web_ev_df)
+'''
 
+kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
+kmeans.fit(web_ev_df)
 centers = kmeans.cluster_centers_
 web_df['env'] = kmeans.labels_
 
@@ -311,7 +340,7 @@ out_evs_3d = 'output/kmeans_3d_' + vers
 f_out = out_evs_3d + str_grid + '.png'
 wt.plot3d(labels=kmeans.labels_, data=web_ev_df, f_out=f_out)
 
-    # TODO there should be some loop on the environments here
+# TODO there should be some loop on the environments here
 env_type = ''
 f_out_base = ''
 wt.plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None, grid=None) 
@@ -322,4 +351,4 @@ wt.plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None
 #def plot_lambda_distribution(data=None, grid=None, base_out=None, envirs=None):
 #def plot_local_volume_density_slice(data=None, box=100, file_out=None, title=None):
 
-
+'''
