@@ -62,10 +62,11 @@ def order_by_delta(n_clusters=4, web_df=None, centers=None):
         print(tab_str)
 
     print('\n')
-    for i in range(0, n_clusters):
-        c_str = ' & $ %.3f $  &  $ %.3f $ & $ %.3f $ ' % (centers[i,0], centers[i, 1], centers[i, 2])
-        line_str = envirs_sort[i] + c_str
-        print(line_str)
+
+    #for i in range(0, n_clusters):
+    #    c_str = ' & $ %.3f $  &  $ %.3f $ & $ %.3f $ ' % (centers[i,0], centers[i, 1], centers[i, 2])
+    #    line_str = envirs_sort[i] + c_str
+    #    print(line_str)
 
     return envirs_sort, colors_sort, number_sort
 
@@ -170,6 +171,7 @@ if __name__ == "__main__":
     plotKLV = False
     plotEVs = False
     plotLambdas = False
+    read_kmeans = True
 
     #plot_cmp()
 
@@ -188,6 +190,8 @@ if __name__ == "__main__":
 
     #web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
     #web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
+
+    web_kmeans_file = file_base + 'vweb_kmeans_k4_n128.csv'
 
     #box = 500.0e+3; thick = 7.0e+3
     #box = 500.0; thick = 5.0
@@ -235,14 +239,23 @@ if __name__ == "__main__":
 
     #data = web_df[cols_select]
 
-    print('Running kmeans...')
     n_clusters = 4
     n_init = 101
-    kmeans = KMeans(n_clusters=n_clusters, n_init=n_init)
-    kmeans.fit(web_df[cols_select])
-    centers = kmeans.cluster_centers_
-    web_df['env'] = kmeans.labels_
-    print('Done.')
+
+    if read_kmeans:
+
+        web_df = pd.read_csv(web_kmeans_file)
+        centers = []
+    else:
+
+        print('Running kmeans...')
+        kmeans = KMeans(n_clusters=n_clusters, n_init=n_init)
+        kmeans.fit(web_df[cols_select])
+        centers = kmeans.cluster_centers_
+        web_df['env'] = kmeans.labels_
+        web_df.to_csv(web_kmeans_file)
+        print('Done.')
+        
 
     envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=4, web_df=web_df, centers=centers)
 
@@ -251,7 +264,7 @@ if __name__ == "__main__":
     print(number_sort)
 
     #def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False):
-    plot_vweb(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort)
+    wt.plot_vweb(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort)
 
 
 

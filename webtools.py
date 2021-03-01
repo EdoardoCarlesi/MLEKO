@@ -389,6 +389,9 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
     """ Plot the usual vweb using an input threshold and a given dataset """
     
     envs = [0, 1, 2, 3]
+    envs = np.array(envs)
+    ordered_envs = np.array(ordered_envs)
+
     z_min = box * 0.5 - thick
     z_max = box * 0.5 + thick
 
@@ -414,15 +417,17 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
 
     else:
         print(f'Plotting web with pre-computed environment class')
-        ind_voids = where(ordered_envs == 0)
-        ind_sheet = where(ordered_envs == 1)
-        ind_filam = where(ordered_envs == 2)
-        ind_knots = where(ordered_envs == 3)
+        ind_voids = np.where(ordered_envs == 0)
+        ind_sheet = np.where(ordered_envs == 1)
+        ind_filam = np.where(ordered_envs == 2)
+        ind_knots = np.where(ordered_envs == 3)
         
+        print(ind_voids, ind_sheet, ind_filam, ind_knots[0])
+
         voids = data[data['env'] == ind_voids[0][0]]
-        voids = data[data['env'] == ind_sheet[0][0]]
-        voids = data[data['env'] == ind_filam[0][0]]
-        voids = data[data['env'] == ind_knots[0][0]]
+        sheet = data[data['env'] == ind_sheet[0][0]]
+        filam = data[data['env'] == ind_filam[0][0]]
+        knots = data[data['env'] == ind_knots[0][0]]
 
     fontsize = 20
 
