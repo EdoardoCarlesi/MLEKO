@@ -20,9 +20,7 @@ from sklearn.preprocessing import StandardScaler
 
     
 def plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None, grid=None): 
-    """
-        Plot the three eigenvalues distributions for a given environment type
-    """
+    """ Plot the three eigenvalues distributions for a given environment type """
 
     evs = data[data['env'] == env_type]
 
@@ -72,9 +70,7 @@ def plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=Non
 
 
 def plot_new_format(data=None, f_out=None, labels=None):
-    """
-        Plot the point distribution according to Yehuda's new suggestion
-    """
+    """ Plot the point distribution according to Yehuda's new suggestion """
 
     for il, cl in enumerate(labels):
         cols.append(colors_sort[cl])
@@ -100,9 +96,9 @@ def plot_new_format(data=None, f_out=None, labels=None):
 
 def plot3d(labels=None, data=None, f_out=None):
     """
-        Plot a 3d distribution of points
-        - labels can be kmeans.labels_ , it is an integer describing the class each point belongs to
-        - data is the v-web eigenvalues dataframe
+    Plot a 3d distribution of points
+    - labels can be kmeans.labels_ , it is an integer describing the class each point belongs to
+    - data is the v-web eigenvalues dataframe
     """
 
     cols = []
@@ -125,21 +121,14 @@ def plot3d(labels=None, data=None, f_out=None):
 
 
 def wss(data=None, centers=None, labels=None):
-    """
-        Within sum of squares
-    """
-    
-    '''
-    for i, center in enumerate(centers):
-        for 
-    '''
+    """ Within sum of squares """
+    # TODO   
+    pass
 
 
 @t.time_total
 def generate_random(data=None, grid=None, prior='flat', verbose=False, mode='simple'):
-    """
-        Generate a random distribution of eigenvalues
-    """
+    """ Generate a random distribution of eigenvalues """
 
     print(f'Generating a random distribution of {grid}^3 points using a {prior} prior...')
     n_pts = grid * grid * grid
@@ -215,9 +204,7 @@ def generate_random(data=None, grid=None, prior='flat', verbose=False, mode='sim
 
 @t.time_total
 def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor=10, visualize=False, elbow=True):
-    """
-        Evaluate different metrics to estimate the best k for the cluster number
-    """
+    """ Evaluate different metrics to estimate the best k for the cluster number """
 
     if elbow == False:
         sil_score = []
@@ -396,12 +383,12 @@ def order_kmeans(data=None, nk=4):
 
     return data
 
-@t.time_total
-def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
-    """
-        Plot the usual vweb using an input threshold and a given dataset
-    """
 
+@t.time_total
+def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False):
+    """ Plot the usual vweb using an input threshold and a given dataset """
+    
+    envs = [0, 1, 2, 3]
     z_min = box * 0.5 - thick
     z_max = box * 0.5 + thick
 
@@ -418,10 +405,24 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
         data['z'] = data['z'] / 1e+3
         shift = shift / 1e+3
 
-    voids = data[data['l1'] < thresh]
-    sheet = data[(data['l2'] < thresh) & (data['l1'] > thresh)]
-    filam = data[(data['l2'] > thresh) & (data['l3'] < thresh)]
-    knots = data[data['l3'] > thresh]
+    if use_thresh:
+        print(f'Plotting web with lambda threshold {thresh}')
+        voids = data[data['l1'] < thresh]
+        sheet = data[(data['l2'] < thresh) & (data['l1'] > thresh)]
+        filam = data[(data['l2'] > thresh) & (data['l3'] < thresh)]
+        knots = data[data['l3'] > thresh]
+
+    else:
+        print(f'Plotting web with pre-computed environment class')
+        ind_voids = where(ordered_envs == 0)
+        ind_sheet = where(ordered_envs == 1)
+        ind_filam = where(ordered_envs == 2)
+        ind_knots = where(ordered_envs == 3)
+        
+        voids = data[data['env'] == ind_voids[0][0]]
+        voids = data[data['env'] == ind_sheet[0][0]]
+        voids = data[data['env'] == ind_filam[0][0]]
+        voids = data[data['env'] == ind_knots[0][0]]
 
     fontsize = 20
 
@@ -435,16 +436,16 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
         size = 3
 
     # Plot the eigenvaule threshold based V-Web
-    print(f'Plotting web with lambda threshold {thresh}')
-
     plt.figure(figsize=(10, 10))
     plt.xlim([-shift, shift])
     plt.ylim([-shift, shift])
-    plt.title('$\lambda_{thr} = $' + str(thresh), fontsize=fontsize)
     plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
     plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
+
+    if use_thresh:
+        plt.title('$\lambda_{thr} = $' + str(thresh), fontsize=fontsize)
 
     size = 30
     plt.scatter(voids['x'], voids['y'], c='lightgrey', s=size, marker='s')
@@ -460,38 +461,37 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0):
     plt.cla()
     plt.clf()
 
-    # Plot densities
-    #palette="YlOrBr"
-    #palette="PuRd"
-    palette="Greys"
-    color_fac = 50.0
-    #size = 100
-    plt.figure(figsize=(10, 10))
-    plt.xlim([-shift, shift])
-    plt.ylim([-shift, shift])
-    plt.title('$\log_{10}\Delta_m', fontsize=fontsize)
-    #sns.scatterplot(data['x'], data['y'], hue=np.log10(10 * data['dens']), marker='s', s=size, legend = False, palette=palette)
-    plt.scatter(data['x'], data['y'], c=color_fac * np.log10(data['dens']), marker='s', s=size, cmap=palette)
+    # Plt densities
+    if plot_dens:
+        #palette="YlOrBr"
+        #palette="PuRd"
+        palette="Greys"
+        color_fac = 50.0
+        #size = 100
+        plt.figure(figsize=(10, 10))
+        plt.xlim([-shift, shift])
+        plt.ylim([-shift, shift])
+        plt.title('$\log_{10}\Delta_m', fontsize=fontsize)
+        #sns.scatterplot(data['x'], data['y'], hue=np.log10(10 * data['dens']), marker='s', s=size, legend = False, palette=palette)
+        plt.scatter(data['x'], data['y'], c=color_fac * np.log10(data['dens']), marker='s', s=size, cmap=palette)
 
-    # Override seaborn defaults
-    plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
-    plt.tight_layout()
+        # Override seaborn defaults
+        plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
+        plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
+        plt.tight_layout()
 
-    # Save file
-    f_out = fout + '_dens.png'
-    print('Saving fig to ', f_out)
-    plt.savefig(f_out)
-    plt.cla()
-    plt.clf()
+        # Save file
+        f_out = fout + '_dens.png'
+        print('Saving fig to ', f_out)
+        plt.savefig(f_out)
+        plt.cla()
+        plt.clf()
 
 
 def check_distribution(values):
-    """
-        Quick sanity check on a distribution
-    """
+    """ Quick sanity check on a distribution """
 
     std = np.std(values)
     med = np.median(values)
@@ -501,9 +501,7 @@ def check_distribution(values):
 
 
 def entropy(labels=None, k=None):
-    """
-        Very simple entropy calculation
-    """
+    """ Very simple entropy calculation """
 
     n = len(labels)
 
@@ -518,9 +516,7 @@ def entropy(labels=None, k=None):
 
 @t.time_total
 def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=1000, verbose=False, f_out=None):
-    """
-        Check how stable are the centers of the k-means, comparing for different ks
-    """
+    """ Check how stable are the centers of the k-means, comparing for different ks """
 
     # Rescale the dataset size for faster convergence
     n_data = int(len(data) / rescale_factor)
@@ -621,8 +617,8 @@ def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=100
 @t.time_total
 def plot_local_volume_density_slice(data=None, box=100, file_out=None, title=None, envirs=None):
     """
-        Plot a slice of the local volume with a different color coding for each environment
-        Make sure the environments are correctly sorted according to their density
+    Plot a slice of the local volume with a different color coding for each environment
+    Make sure the environments are correctly sorted according to their density
     """
 
     z_min = box * 0.5 - thick
@@ -668,8 +664,8 @@ def plot_local_volume_density_slice(data=None, box=100, file_out=None, title=Non
 @t.time_total
 def plot_lambda_distribution(data=None, grid=None, base_out=None, envirs=None):
     """
-        Plot the distributions of the different eigenvalues in each environment type
-        Make sure the environments are correctly sorted according to their density
+    Plot the distributions of the different eigenvalues in each environment type
+    Make sure the environments are correctly sorted according to their density
     """
 
     labels = ['$\lambda_1$', '$\lambda_2$', '$\lambda_3$']
@@ -708,11 +704,9 @@ def plot_lambda_distribution(data=None, grid=None, base_out=None, envirs=None):
 
 
 if __name__ == "__main__":
-    """
-        Main program, used for debugging and testing
-    """
+    """ Main program, used for debugging and testing """
 
-
+    pass
 
 
 

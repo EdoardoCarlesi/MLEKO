@@ -17,8 +17,104 @@ import numpy as np
 import tools as t
 
 
+def order_by_delta(n_clusters=4, web_df=None, centers=None):
+    """ Return color codes sorted by median density of environment type """
+
+    if n_clusters == 2:
+        colors = ['lightgrey', 'black']
+        envirs = ['void', 'knot']
+    elif n_clusters == 3:
+        colors = ['lightgrey', 'darkgrey', 'red']
+        envirs = ['underdense', 'filament', 'knot']
+    elif n_clusters == 4:
+        number = [0, 1, 2, 3]
+        colors = ['lightgrey', 'grey', 'black', 'red']
+        envirs = ['void', 'sheet', 'filament', 'knot']
+    elif n_clusters == 5:
+        colors = ['lightgrey', 'grey', 'darkgrey', 'black', 'red']
+        envirs = ['void', 'sheet', 'wall', 'filament', 'knot']
+    elif n_clusters == 6:
+        colors = ['lightgrey', 'grey', 'darkgrey', 'black', 'orange', 'red']
+        envirs = ['void', 'sheet', 'wall', 'filament', 'clump', 'knot']
+
+    envirs_sort = []
+    colors_sort = []
+    number_sort = []
+
+    deltas = np.zeros((n_clusters))
+    ntot = len(web_df)
+
+    for i in range(0, n_clusters):
+        deltas[i] = np.median(web_df[web_df['env'] == i]['dens'].values)
+
+    deltas_sort = np.sort(deltas)
+
+    for i in range(0, n_clusters):
+        n = len(web_df[web_df['env'] == i]) 
+        index = np.where(deltas_sort == deltas[i])
+        env_str = envirs[index[0][0]]
+        envirs_sort.append(env_str)
+        colors_sort.append(colors[index[0][0]])
+        number_sort.append(number[index[0][0]])
+
+        num_str = '& $ %.3f $ & $%.3f$ ' % (deltas[i], n/ntot)
+        tab_str = env_str + num_str
+        print(tab_str)
+
+    print('\n')
+    for i in range(0, n_clusters):
+        c_str = ' & $ %.3f $  &  $ %.3f $ & $ %.3f $ ' % (centers[i,0], centers[i, 1], centers[i, 2])
+        line_str = envirs_sort[i] + c_str
+        print(line_str)
+
+    return envirs_sort, colors_sort, number_sort
+
+
+def web_to_csv(web_f=None, web_csv=None):
+    """" Convert ASCII Vweb file to CSV format """
+
+    print('Converting to csv: ', web_csv)
+    columns = ['dens', 'Vx', 'Vy', 'Vz', 'l1', 'l2', 'l3', 'e1x', 'e1y', 'e1z', 'e2x', 'e2y', 'e2z', 'e3x', 'e3y', 'e3z']
+    vweb = pd.read_csv(web_f, sep=' ')
+    print(vweb.head())
+    vweb.columns = columns
+    vweb = gen_coord(data=vweb)
+    vweb.to_csv(web_csv)
+    print('Done.')
+
+    return vweb 
+
+
+def gen_coord(data=None, grid=128, box=100.0, cols=['x','y','z']):
+    """ Generate the coordinates on the x,y,z grid for the vweb """
+ 
+    print('Generating x,y,z coordinates for the v-web')
+    cell = box / grid
+    half = cell * 0.5
+    n_dim = len(data)
+    x_arr = np.zeros(n_dim)
+    y_arr = np.zeros(n_dim)
+    z_arr = np.zeros(n_dim)
+
+    for i in range(0, grid):
+        for j in range(0, grid):
+            for k in range(0, grid):
+                ind = i + j * grid + k * grid * grid 
+                x_arr[ind] = i * cell + half
+                y_arr[ind] = j * cell + half
+                z_arr[ind] = k * cell + half
+
+    data['x'] = x_arr
+    data['y'] = y_arr
+    data['z'] = z_arr
+    print('Done')
+
+    return data
+
+
 def plot_cmp():
-    
+    """ Compare the results of the k-means vs. standard threshold """
+
     cmp_file = 'output/vweb_std.dat'
     data = pd.read_csv(cmp_file, dtype=float)
 
@@ -57,6 +153,7 @@ def plot_cmp():
     plt.clf()
     plt.close()
 
+
 if __name__ == "__main__":
     """
         MAIN PROGRAM - compute K-Means
@@ -74,14 +171,18 @@ if __name__ == "__main__":
     plotEVs = False
     plotLambdas = False
 
-    plot_cmp()
+    #plot_cmp()
 
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
-    file_base = '/home/edoardo/CLUES/DATA/Vweb/FullBox/'
+    #file_base = '/home/edoardo/CLUES/DATA/Vweb/FullBox/'
+    file_ascii = '/home/edoardo/CLUES/TEST_DATA/VWeb/vweb_2048.000128.Vweb-ascii'
+    file_base = '/home/edoardo/CLUES/TEST_DATA/VWeb/'
     #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
     #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
     #web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
-    web_file = 'vweb_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+    #web_file = 'vweb_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+    web_file = 'vweb_2048.000128.csv'; str_grid = '_grid128'; grid = 128
+    #web_file = 'vweb_2048.000128.Vweb-ascii'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_25_15.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_00_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128; normalize = True
 
@@ -92,7 +193,10 @@ if __name__ == "__main__":
     #box = 500.0; thick = 5.0
     box = 100.0; thick = 2.0
 
-    web_df = pd.read_csv(file_base + web_file)
+    #web_to_csv(web_f=file_ascii, web_csv=file_base+web_file)
+
+    web_df = pd.read_csv(file_base + web_file, dtype=float)
+    web_df = gen_coord(data=web_df)
 
     n_clusters = 4
     n_init = 1
@@ -119,9 +223,10 @@ if __name__ == "__main__":
             f_out = 'output/kmeans_oldvweb' + str_grid + '_l' + str(thresh)
             wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick)
 
-    '''
     #web_df['logdens'] = np.log10(web_df['dens'])
     #print(web_df.head())
+
+    print(web_df.head())
 
     cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
     #cols_select = ['l1', 'l2', 'l3', 'dens']; vers = 'd'; str_kmeans = r'$k$-means $\lambda$s, \Delta_m'
@@ -135,8 +240,22 @@ if __name__ == "__main__":
     n_init = 101
     kmeans = KMeans(n_clusters=n_clusters, n_init=n_init)
     kmeans.fit(web_df[cols_select])
+    centers = kmeans.cluster_centers_
+    web_df['env'] = kmeans.labels_
     print('Done.')
 
+    envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=4, web_df=web_df, centers=centers)
+
+    print(envirs_sort)
+    print(colors_sort)
+    print(number_sort)
+
+    #def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False):
+    plot_vweb(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort)
+
+
+
+    '''
     web_df['envk_std'] = kmeans.labels_
     web_df = wt.order_kmeans(data=web_df)
 
@@ -148,13 +267,12 @@ if __name__ == "__main__":
         #print(str_print)
         #print('')
 
-
     thresh = [i * 0.02 for i in range(0, 30)]
 
     for th in thresh:
         web_df = wt.std_vweb(data=web_df, thresh=th)
-        
         wt.compare_vweb_kmeans(vweb=web_df, l=th)
+
     '''
 
 
@@ -273,64 +391,20 @@ if __name__ == "__main__":
     else:
         kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
         kmeans.fit(web_ev_df)
-'''
 
 kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
 kmeans.fit(web_ev_df)
 centers = kmeans.cluster_centers_
 web_df['env'] = kmeans.labels_
 
-if n_clusters == 2:
-    colors = ['lightgrey', 'black']
-    envirs = ['void', 'knot']
-elif n_clusters == 3:
-    colors = ['lightgrey', 'darkgrey', 'red']
-    envirs = ['underdense', 'filament', 'knot']
-elif n_clusters == 4:
-    colors = ['lightgrey', 'grey', 'black', 'red']
-    envirs = ['void', 'sheet', 'filament', 'knot']
-elif n_clusters == 5:
-    colors = ['lightgrey', 'grey', 'darkgrey', 'black', 'red']
-    envirs = ['void', 'sheet', 'wall', 'filament', 'knot']
-elif n_clusters == 6:
-    colors = ['lightgrey', 'grey', 'darkgrey', 'black', 'orange', 'red']
-    envirs = ['void', 'sheet', 'wall', 'filament', 'clump', 'knot']
-
 vers = vers + '_k' + str(n_clusters)
 out_evs_dist = 'output/kmeans_vweb_' + vers
 out_dens_dist = 'output/kmeans_dens_' + vers
 out_web_slice = 'output/kmeans_web_lv_' + vers
 
-envirs_sort = []
-colors_sort = []
-
-deltas = np.zeros((n_clusters))
-ntot = len(web_df)
-
-for i in range(0, n_clusters):
-    deltas[i] = np.median(web_df[web_df['env'] == i]['dens'].values)
-
-deltas_sort = np.sort(deltas)
-
-for i in range(0, n_clusters):
-    n = len(web_df[web_df['env'] == i]) 
-    index = np.where(deltas_sort == deltas[i])
-    env_str = envirs[index[0][0]]
-    envirs_sort.append(env_str)
-    colors_sort.append(colors[index[0][0]])
-
-    num_str = '& $ %.3f $ & $%.3f$ ' % (deltas[i], n/ntot)
-    tab_str = env_str + num_str
-    print(tab_str)
-
-print('\n')
-for i in range(0, n_clusters):
-    c_str = ' & $ %.3f $  &  $ %.3f $ & $ %.3f $ ' % (centers[i,0], centers[i, 1], centers[i, 2])
-    line_str = envirs_sort[i] + c_str
-    print(line_str)
-
 cols = []
 
+envirs_sort, colors_sort = order_by_delta(n_clusters=4, web_df=web_df)
    
 out_evs_new = 'output/kmeans_new_' + vers
 f_out = out_evs_new + str_grid + '.png'
@@ -345,7 +419,6 @@ env_type = ''
 f_out_base = ''
 wt.plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None, grid=None) 
 
-'''
 
 #if plotLambdas == True:
 #def plot_lambda_distribution(data=None, grid=None, base_out=None, envirs=None):
