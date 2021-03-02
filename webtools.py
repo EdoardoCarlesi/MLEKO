@@ -340,7 +340,7 @@ def compare_vweb_kmeans(vweb=None, l=0.0):
     diffs_inds = np.where(diffs == 0)
 
     n_all = len(vweb)
-    print(f'Global shared values: {l} {len(diffs[diffs_inds])/n_all}')
+    #print(f'Global shared values: {l} {len(diffs[diffs_inds])/n_all}')
     
     for i, env in enumerate([0, 1, 2, 3]):
         n_tot = len(vweb[vweb['envk'] == env])
@@ -353,7 +353,7 @@ def compare_vweb_kmeans(vweb=None, l=0.0):
         #print(f'Env: {env}, Tot: {n_tot}, Shared: {n_shared}, Perc: {n_env_shared/tot_env}')
 
     average = np.mean(n_env_shared/tot_env)
-    print(f'Global shared values: {l} {len(diffs[diffs_inds])/n_all} {average} {n_env_shared/tot_env}')
+    print(f'Global shared values: {l},{len(diffs[diffs_inds])/n_all},{average},{n_env_shared/tot_env}')
 
     for env in [0, 1, 2, 3]:
         n_tot = len(vweb[vweb['env'] == env])

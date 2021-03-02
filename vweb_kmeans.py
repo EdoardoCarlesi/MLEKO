@@ -9,6 +9,7 @@
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+import pickle
 import matplotlib.pyplot as plt
 import webtools as wt
 import pandas as pd
@@ -162,23 +163,24 @@ if __name__ == "__main__":
 
     # Program Options: what should we run / analyze?
     normalize = False
-    evalMetrics = True
+    evalMetrics = False
     doYehuda = False
 
     plotNew = False
-    plotStd = True
+    plotStd = False
     plot3d = False
     plotKLV = False
     plotEVs = False
     plotLambdas = False
-    read_kmeans = True
+    read_kmeans = False
 
     #plot_cmp()
 
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/FullBox/'
     file_ascii = '/home/edoardo/CLUES/TEST_DATA/VWeb/vweb_2048.000128.Vweb-ascii'
-    file_base = '/home/edoardo/CLUES/TEST_DATA/VWeb/'
+    #file_base = '/home/edoardo/CLUES/TEST_DATA/VWeb/'
+    file_base = '/home/edoardo/CLUES/DATA/VWeb/'
     #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
     #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
     #web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
@@ -188,16 +190,11 @@ if __name__ == "__main__":
     #web_file = 'vweb_25_15.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_00_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128; normalize = True
 
-    #web_file = 'vweb_128_.000128.Vweb-csv'; str_grid = '_grid128box500'; grid = 128
-    #web_file = 'vweb_256_.000256.Vweb-csv'; str_grid = '_grid256box500'; grid = 256
-
     web_kmeans_file = file_base + 'vweb_kmeans_k4_n128.csv'
 
     #box = 500.0e+3; thick = 7.0e+3
     #box = 500.0; thick = 5.0
     box = 100.0; thick = 2.0
-
-    #web_to_csv(web_f=file_ascii, web_csv=file_base+web_file)
 
     web_df = pd.read_csv(file_base + web_file, dtype=float)
     web_df = gen_coord(data=web_df)
@@ -245,13 +242,16 @@ if __name__ == "__main__":
     if read_kmeans:
 
         web_df = pd.read_csv(web_kmeans_file)
-        centers = []
+        kmeans = pickle.load(open('output/kmeans.pkl', 'rb'))
+        centers = kmeans.cluster_centers_
+
     else:
 
         print('Running kmeans...')
         kmeans = KMeans(n_clusters=n_clusters, n_init=n_init)
         kmeans.fit(web_df[cols_select])
         centers = kmeans.cluster_centers_
+        pickle.dump(kmeans, open('output/kmeans.pkl', 'wb'))
         web_df['env'] = kmeans.labels_
         web_df.to_csv(web_kmeans_file)
         print('Done.')
@@ -266,9 +266,6 @@ if __name__ == "__main__":
     #def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False):
     wt.plot_vweb(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort)
 
-
-
-    '''
     web_df['envk_std'] = kmeans.labels_
     web_df = wt.order_kmeans(data=web_df)
 
@@ -286,6 +283,7 @@ if __name__ == "__main__":
         web_df = wt.std_vweb(data=web_df, thresh=th)
         wt.compare_vweb_kmeans(vweb=web_df, l=th)
 
+    '''
     '''
 
 
