@@ -385,12 +385,14 @@ def order_kmeans(data=None, nk=4):
 
 
 @t.time_total
-def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False):
+def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False, do_plot=True):
     """ Plot the usual vweb using an input threshold and a given dataset """
     
     envs = [0, 1, 2, 3]
     envs = np.array(envs)
     ordered_envs = np.array(ordered_envs)
+    #dummy = np.zeros(len(data))
+    #data['env'] = dummy
 
     z_min = box * 0.5 - thick
     z_max = box * 0.5 + thick
@@ -415,6 +417,20 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
         filam = data[(data['l2'] > thresh) & (data['l3'] < thresh)]
         knots = data[data['l3'] > thresh]
 
+        def find_env(l1, l2, l3):
+            #l1, l2, l3 = x[0], x[1], x[2]
+
+            if l1 < thresh:
+                return 0.
+            elif l1 > thresh and l2 < thresh:
+                return 1.
+            elif l2 > thresh and l3 < thresh:
+                return 2.
+            elif l3 > thresh:
+                return 3.
+
+        data['env'] = data[['l1', 'l2', 'l3']].apply(lambda x: find_env(*x), axis=1)
+
     else:
         print(f'Plotting web with pre-computed environment class')
         ind_voids = np.where(ordered_envs == 0)
@@ -429,70 +445,78 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
         filam = data[data['env'] == ind_filam[0][0]]
         knots = data[data['env'] == ind_knots[0][0]]
 
-    fontsize = 20
+    n_pts = float(len(data))
+    str_env_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (len(voids)/n_pts, len(sheet)/n_pts, len(filam)/n_pts, len(knots)/n_pts)
+    print(str_env_types)
 
-    if grid == 32:
-        size = 40
-    elif grid == 64:
-        size = 15
-    elif grid == 128:
-        size = 5
-    elif grid == 256:
-        size = 3
+    if do_plot:
 
-    # Plot the eigenvaule threshold based V-Web
-    plt.figure(figsize=(10, 10))
-    plt.xlim([-shift, shift])
-    plt.ylim([-shift, shift])
-    plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
+        fontsize = 20
 
-    if use_thresh:
-        plt.title('$\lambda_{thr} = $' + str(thresh), fontsize=fontsize)
+        if grid == 32:
+            size = 40
+        elif grid == 64:
+            size = 15
+        elif grid == 128:
+            size = 5
+        elif grid == 256:
+            size = 3
 
-    size = 30
-    plt.scatter(voids['x'], voids['y'], c='lightgrey', s=size, marker='s')
-    plt.scatter(sheet['x'], sheet['y'], c='grey', s=size, marker='s')
-    plt.scatter(filam['x'], filam['y'], c='black', s=size, marker='s')
-    plt.scatter(knots['x'], knots['y'], c='red', s=size, marker='s')
-
-    # Save file
-    f_out = fout + '_' + str(thresh).replace('.','') + '.png'
-    plt.tight_layout()
-    print('Saving fig to ', f_out)
-    plt.savefig(f_out)
-    plt.cla()
-    plt.clf()
-
-    # Plt densities
-    if plot_dens:
-        #palette="YlOrBr"
-        #palette="PuRd"
-        palette="Greys"
-        color_fac = 50.0
-        #size = 100
+        # Plot the eigenvaule threshold based V-Web
         plt.figure(figsize=(10, 10))
         plt.xlim([-shift, shift])
         plt.ylim([-shift, shift])
-        plt.title('$\log_{10}\Delta_m', fontsize=fontsize)
-        #sns.scatterplot(data['x'], data['y'], hue=np.log10(10 * data['dens']), marker='s', s=size, legend = False, palette=palette)
-        plt.scatter(data['x'], data['y'], c=color_fac * np.log10(data['dens']), marker='s', s=size, cmap=palette)
-
-        # Override seaborn defaults
         plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
         plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
         plt.xticks(fontsize=fontsize)
         plt.yticks(fontsize=fontsize)
-        plt.tight_layout()
+
+        if use_thresh:
+            plt.title('$\lambda_{thr} = $' + str(thresh), fontsize=fontsize)
+
+        size = 30
+        plt.scatter(voids['x'], voids['y'], c='lightgrey', s=size, marker='s')
+        plt.scatter(sheet['x'], sheet['y'], c='grey', s=size, marker='s')
+        plt.scatter(filam['x'], filam['y'], c='black', s=size, marker='s')
+        plt.scatter(knots['x'], knots['y'], c='red', s=size, marker='s')
 
         # Save file
-        f_out = fout + '_dens.png'
+        f_out = fout + '_' + str(thresh).replace('.','') + '.png'
+        plt.tight_layout()
         print('Saving fig to ', f_out)
         plt.savefig(f_out)
         plt.cla()
         plt.clf()
+
+        # Plt densities
+        if plot_dens:
+            #palette="YlOrBr"
+            #palette="PuRd"
+            palette="Greys"
+            color_fac = 50.0
+            #size = 100
+            plt.figure(figsize=(10, 10))
+            plt.xlim([-shift, shift])
+            plt.ylim([-shift, shift])
+            plt.title('$\log_{10}\Delta_m', fontsize=fontsize)
+            #sns.scatterplot(data['x'], data['y'], hue=np.log10(10 * data['dens']), marker='s', s=size, legend = False, palette=palette)
+            plt.scatter(data['x'], data['y'], c=color_fac * np.log10(data['dens']), marker='s', s=size, cmap=palette)
+
+            # Override seaborn defaults
+            plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
+            plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
+            plt.xticks(fontsize=fontsize)
+            plt.yticks(fontsize=fontsize)
+            plt.tight_layout()
+
+            # Save file
+            f_out = fout + '_dens.png'
+            print('Saving fig to ', f_out)
+            plt.savefig(f_out)
+            plt.cla()
+            plt.clf()
+
+    return data
 
 
 def check_distribution(values):
@@ -605,14 +629,10 @@ def kmeans_stability(data=None, n_clusters_max=None, n_ks=10, rescale_factor=100
         results[n_clusters-2, 3] = avgdist
         results[n_clusters-2, 4] = minimum/avgdist
 
-    print(results)
-
     if f_out != None:
         for i_col, col in enumerate(columns):
             df_print[col] = results[:, i_col]
         
-        print(df_print.head())
-
         sns.lineplot(x=df_print[columns[0]], y=df_print[columns[1]])
         sns.lineplot(x=df_print[columns[0]], y=df_print[columns[4]])
         plt.legend(labels=['Center Scatter', 'Center Scatter Norm.'])
@@ -667,29 +687,38 @@ def plot_local_volume_density_slice(data=None, box=100, file_out=None, title=Non
 
 
 @t.time_total
-def plot_lambda_distribution(data=None, grid=None, base_out=None, envirs=None):
+def plot_lambda_distribution(data=None, grid=128, base_out=None, env_col='env', envirs=[0., 1., 2., 3.], cols=['l1', 'l2', 'l3']):
     """
     Plot the distributions of the different eigenvalues in each environment type
     Make sure the environments are correctly sorted according to their density
     """
+    
+    print('Plotting lambda distributions...')
+    labels = [r'$\lambda_1$', r'$\lambda_2$', r'$\lambda_3$']
+    #x_label = r'$\lambda _1, \lambda _2, \lambda _3$'
+    x_label = r'$\lambda$'
+    colors = ['blue', 'green', 'grey']
+    fontsize=20
 
-    labels = ['$\lambda_1$', '$\lambda_2$', '$\lambda_3$']
-
-    for il, col in enumerate(cols_select):
-
-        for ie, env in enumerate(envirs):
-            tmp_env = data[data['env_name'] == env]
-            sns.distplot(tmp_env[col], color=colors[ie], label=env)
-
-        env_str = envirs_sort[i]
-        file_out = base_out + str_grid + col + '.png'
-
-        print(f'Plotting lambda distribution to: {file_out}')
-        fontsize=10
-
-        # Plot the three eigenvalues
+    # First loop over different environments 
+    for ie, env in enumerate(envirs):
+        plt.grid(False)
+        plt.figure(figsize=(10, 10))
         plt.xticks(fontsize=fontsize)
         plt.yticks(fontsize=fontsize)
+
+        print('Environment: ', env)
+        tmp_env = data[data['env'] == env]
+        env_str = str(env)
+        file_out = base_out + '_env' + env_str + '.png'
+        
+        # Now plot the eigenvalue distribution in each environment
+        for il, col in enumerate(cols):
+            #print(tmp_env[col])
+            #sns.displot(tmp_env[col], color=colors[il], label=labels[il])
+            #print(il, col, env_col, len(tmp_env))
+            plt.hist(tmp_env[col].values, bins=50, color=colors[il], label=labels[il], alpha=0.7, density=True)
+            #print(il, col)
 
         if grid == 32:
             plt.xlim([-0.5, 0.5])
@@ -698,15 +727,16 @@ def plot_lambda_distribution(data=None, grid=None, base_out=None, envirs=None):
         elif grid == 128:
             plt.xlim([-1, 3.0])
 
-        plt.xlabel(labels[il], fontsize=fontsize)
+        plt.xlabel(x_label, fontsize=fontsize)
         plt.legend()
         plt.tight_layout()
     
         # Save figure and clean plot
+        print(f'Plotting lambda distribution to: {file_out}')
         plt.savefig(file_out)
         plt.clf()
         plt.cla()
-
+        plt.close()
 
 if __name__ == "__main__":
     """ Main program, used for debugging and testing """

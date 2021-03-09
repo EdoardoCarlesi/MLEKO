@@ -1,6 +1,6 @@
 """
     MLEKO
-    Machine Learning Ecosystem for KOsmology 
+    Machine Learning Environment for KOsmology 
 
     (C) Edoardo Carlesi 2020
     https://github.com/EdoardoCarlesi/MLEKO
@@ -167,14 +167,12 @@ if __name__ == "__main__":
     doYehuda = False
 
     plotNew = False
-    plotStd = False
+    plotStd = True
     plot3d = False
     plotKLV = False
     plotEVs = False
     plotLambdas = False
-    read_kmeans = False
-
-    #plot_cmp()
+    read_kmeans = True
 
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/FullBox/'
@@ -196,6 +194,7 @@ if __name__ == "__main__":
     #box = 500.0; thick = 5.0
     box = 100.0; thick = 2.0
 
+    #plot_cmp()
     web_df = pd.read_csv(file_base + web_file, dtype=float)
     web_df = gen_coord(data=web_df)
 
@@ -216,25 +215,12 @@ if __name__ == "__main__":
 
     if plotStd == True: 
 
-        #f_out = 'output/kmeans_oldvweb' + str_grid
-        #norm = web_df['l1'].max()
-
         for thresh in threshold_list:
-            print('Plotting standard web for threshold: ', thresh)
             f_out = 'output/kmeans_oldvweb' + str_grid + '_l' + str(thresh)
-            wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick)
-
-    #web_df['logdens'] = np.log10(web_df['dens'])
-    #print(web_df.head())
-
-    print(web_df.head())
+            web_df = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=False)
+            wt.plot_lambda_distribution(data=web_df, base_out=f_out)
 
     cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
-    #cols_select = ['l1', 'l2', 'l3', 'dens']; vers = 'd'; str_kmeans = r'$k$-means $\lambda$s, \Delta_m'
-    #cols_select = ['l1', 'l2', 'l3', 'logdens']; vers = 'ld'; str_kmeans = r'$k$-means $\lambda$s, $\log_{10}\Delta_m$'
-    #cols_select = ['l1', 'l2', 'l3', 'dens', 'Vx', 'Vy', 'Vz']; vers = 'd_vx'
-
-    #data = web_df[cols_select]
 
     n_clusters = 4
     n_init = 101
@@ -256,14 +242,9 @@ if __name__ == "__main__":
         web_df.to_csv(web_kmeans_file)
         print('Done.')
         
-
     envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=4, web_df=web_df, centers=centers)
+    wt.plot_lambda_distribution(data=web_df, base_out=f_out)
 
-    print(envirs_sort)
-    print(colors_sort)
-    print(number_sort)
-
-    #def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False):
     wt.plot_vweb(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort)
 
     web_df['envk_std'] = kmeans.labels_
@@ -272,19 +253,13 @@ if __name__ == "__main__":
     for col in cols_select:
         med = np.median(web_df[col])
         std = np.std(web_df[col])
-
         str_print = '%.3f \pm %.3f & ' % (med, std)
-        #print(str_print)
-        #print('')
 
     thresh = [i * 0.02 for i in range(0, 30)]
 
     for th in thresh:
         web_df = wt.std_vweb(data=web_df, thresh=th)
         wt.compare_vweb_kmeans(vweb=web_df, l=th)
-
-    '''
-    '''
 
 
 '''
