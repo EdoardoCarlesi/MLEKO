@@ -7,6 +7,8 @@
 """
 
 import matplotlib.pyplot as plt
+import matplotlib.axis as ax
+import matplotlib 
 import pandas as pd
 import seaborn as sns
 import numpy as np
@@ -101,18 +103,38 @@ def plot3d(labels=None, data=None, f_out=None):
     - data is the v-web eigenvalues dataframe
     """
 
-    cols = []
-        
-    for il, cl in enumerate(labels):
-        cols.append(colors_sort[cl])
+    #colors = ['g', 'g', 'b', 'r']
+    #colors = ['lightgrey', 'grey', 'black', 'red']
+    #labels = ['void', 'sheet', 'filament', 'knot']
+    colors = ['lightgrey', 'black', 'grey', 'red']
+    labels = ['void', 'filament', 'sheet', 'knot']
+    order = [0, 2, 1, 3]
+    c_rgb = []
+
+    for color in colors:
+        c_rgb.append(matplotlib.colors.to_rgb(color))
 
     print('Plotting in 3D particle distribution...')
-    fig = plt.figure()
+    fig = plt.figure(figsize=(6,5))
+    fontsize = 10
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(data['l1'], data['l2'], data['l3'], c = cols)
-    ax.set_xlabel(r'$\lambda_1$')
-    ax.set_ylabel(r'$\lambda_2$')
-    ax.set_zlabel(r'$\lambda_3$')
+    #plt.grid(False)
+
+    for i, color in zip(order, colors):
+        datac = data[data['env'] == float(i)]
+        ax.scatter(datac['l1'], datac['l2'], datac['l3'], color=c_rgb[i], label=labels[i])
+        #ax.scatter(data['l1'], data['l2'], data['l3'], c = labels, cmap=cm)
+
+    #ax.scatter(data['l1'], data['l2'], data['l3'], c = labels, cmap=cm)
+
+    #plt.xticks(fontsize=fontsize)
+    #plt.yticks(fontsize=fontsize)
+    #plt.zticks(fontsize=fontsize)
+    ax.set_xlabel(r'$\lambda_1$', fontsize=fontsize)
+    ax.set_ylabel(r'$\lambda_2$', fontsize=fontsize)
+    ax.set_zlabel(r'$\lambda_3$', fontsize=fontsize)
+ 
+    plt.legend(fontsize=fontsize, frameon=True, framealpha=1.0)
     plt.tight_layout()
     plt.savefig(f_out)
     plt.clf()
@@ -418,7 +440,6 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
         knots = data[data['l3'] > thresh]
 
         def find_env(l1, l2, l3):
-            #l1, l2, l3 = x[0], x[1], x[2]
 
             if l1 < thresh:
                 return 0.
@@ -446,8 +467,10 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
         knots = data[data['env'] == ind_knots[0][0]]
 
     n_pts = float(len(data))
-    str_env_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (len(voids)/n_pts, len(sheet)/n_pts, len(filam)/n_pts, len(knots)/n_pts)
-    print(str_env_types)
+    #str_env_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (len(voids)/n_pts, len(sheet)/n_pts, len(filam)/n_pts, len(knots)/n_pts)
+    #print(str_env_types)
+    str_dens_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (voids['dens'].median(), sheet['dens'].median(), filam['dens'].median(), knots['dens'].median())
+    print(str_dens_types)
 
     if do_plot:
 
@@ -687,7 +710,7 @@ def plot_local_volume_density_slice(data=None, box=100, file_out=None, title=Non
 
 
 @t.time_total
-def plot_lambda_distribution(data=None, grid=128, base_out=None, env_col='env', envirs=[0., 1., 2., 3.], cols=['l1', 'l2', 'l3']):
+def plot_lambda_distribution(data=None, grid=128, base_out=None, env_col='env', envirs=[0., 1., 2., 3.], cols=['l1', 'l2', 'l3'], x_axis=True):
     """
     Plot the distributions of the different eigenvalues in each environment type
     Make sure the environments are correctly sorted according to their density
@@ -698,15 +721,23 @@ def plot_lambda_distribution(data=None, grid=128, base_out=None, env_col='env', 
     #x_label = r'$\lambda _1, \lambda _2, \lambda _3$'
     x_label = r'$\lambda$'
     colors = ['blue', 'green', 'grey']
-    fontsize=20
+    fontsize = 20
 
     # First loop over different environments 
     for ie, env in enumerate(envirs):
+
+        # Set plot settings
+        fig, ax = plt.subplots()
+        
+        if x_axis:
+            plt.figure(figsize=(6, 6))
+        else:
+            plt.figure(figsize=(6, 5))
+
         plt.grid(False)
-        plt.figure(figsize=(10, 10))
+
         plt.xticks(fontsize=fontsize)
         plt.yticks(fontsize=fontsize)
-
         print('Environment: ', env)
         tmp_env = data[data['env'] == env]
         env_str = str(env)
@@ -714,11 +745,7 @@ def plot_lambda_distribution(data=None, grid=128, base_out=None, env_col='env', 
         
         # Now plot the eigenvalue distribution in each environment
         for il, col in enumerate(cols):
-            #print(tmp_env[col])
-            #sns.displot(tmp_env[col], color=colors[il], label=labels[il])
-            #print(il, col, env_col, len(tmp_env))
             plt.hist(tmp_env[col].values, bins=50, color=colors[il], label=labels[il], alpha=0.7, density=True)
-            #print(il, col)
 
         if grid == 32:
             plt.xlim([-0.5, 0.5])
@@ -727,16 +754,30 @@ def plot_lambda_distribution(data=None, grid=128, base_out=None, env_col='env', 
         elif grid == 128:
             plt.xlim([-1, 3.0])
 
-        plt.xlabel(x_label, fontsize=fontsize)
-        plt.legend()
+        xticks = plt.xticks()[0]
+        yticks = plt.yticks()[0] 
+        xticks_str = ['%.1f' % x for x in xticks]
+        yticks_str = ['%.1f' % y for y in yticks]
+        plt.yticks(ticks=yticks, labels=yticks_str)
+
+        if x_axis:
+            plt.xlabel(x_label, fontsize=fontsize)
+            plt.xticks(ticks=xticks, labels=xticks_str)
+        else:
+            plt.xticks(ticks=[], labels=[])
+
         plt.tight_layout()
     
+        if env == 0.0:
+            plt.legend(prop={'size':fontsize})
+
         # Save figure and clean plot
         print(f'Plotting lambda distribution to: {file_out}')
         plt.savefig(file_out)
         plt.clf()
         plt.cla()
         plt.close()
+
 
 if __name__ == "__main__":
     """ Main program, used for debugging and testing """

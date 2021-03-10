@@ -142,12 +142,18 @@ def plot_cmp():
     print('AvgMax: ', lAvgMax)
     print('TotMax: ', lTotMax)
 
+    
+    fontsize = 20
+    plt.figure(figsize=(8, 8))
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
 
+    plt.grid(False)
     plt.plot(data['lambda'].values, data['tot'].values, color='red', label='tot')
     plt.plot(data['lambda'].values, data['avg'].values, color='black', label='avg')
-    plt.legend()
-    plt.xlabel('lambda')
-    plt.ylabel('% matching cells')
+    plt.legend(fontsize=fontsize)
+    plt.xlabel(r'$\lambda_{thr}$', fontsize=fontsize)
+    plt.ylabel('Share of matching cells', fontsize=fontsize)
     plt.tight_layout()
     #plt.show()
     plt.savefig('output/kmeans_threshold_cmp.png')
@@ -168,11 +174,13 @@ if __name__ == "__main__":
 
     plotNew = False
     plotStd = True
-    plot3d = False
+    plot3d = True
     plotKLV = False
     plotEVs = False
     plotLambdas = False
+
     read_kmeans = True
+    do_cmp = False
 
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/FullBox/'
@@ -218,7 +226,7 @@ if __name__ == "__main__":
         for thresh in threshold_list:
             f_out = 'output/kmeans_oldvweb' + str_grid + '_l' + str(thresh)
             web_df = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=False)
-            wt.plot_lambda_distribution(data=web_df, base_out=f_out)
+            wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
 
     cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
 
@@ -227,6 +235,7 @@ if __name__ == "__main__":
 
     if read_kmeans:
 
+        print('Loading k-means from output/kmeans.pkl')
         web_df = pd.read_csv(web_kmeans_file)
         kmeans = pickle.load(open('output/kmeans.pkl', 'rb'))
         centers = kmeans.cluster_centers_
@@ -242,24 +251,31 @@ if __name__ == "__main__":
         web_df.to_csv(web_kmeans_file)
         print('Done.')
         
+    f_out = 'output/kmeans_' + str_grid 
     envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=4, web_df=web_df, centers=centers)
-    wt.plot_lambda_distribution(data=web_df, base_out=f_out)
-
+    wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
     wt.plot_vweb(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort)
 
     web_df['envk_std'] = kmeans.labels_
     web_df = wt.order_kmeans(data=web_df)
 
-    for col in cols_select:
-        med = np.median(web_df[col])
-        std = np.std(web_df[col])
-        str_print = '%.3f \pm %.3f & ' % (med, std)
+    if plot3d:
+        out_evs_3d = 'output/kmeans_3d_' + vers
+        f_out = out_evs_3d + str_grid + '.png'
+        wt.plot3d(labels=kmeans.labels_, data=web_df, f_out=f_out)
 
-    thresh = [i * 0.02 for i in range(0, 30)]
+    if do_cmp:
 
-    for th in thresh:
-        web_df = wt.std_vweb(data=web_df, thresh=th)
-        wt.compare_vweb_kmeans(vweb=web_df, l=th)
+        for col in cols_select:
+            med = np.median(web_df[col])
+            std = np.std(web_df[col])
+            str_print = '%.3f \pm %.3f & ' % (med, std)
+
+        thresh = [i * 0.02 for i in range(0, 30)]
+
+        for th in thresh:
+            web_df = wt.std_vweb(data=web_df, thresh=th)
+            wt.compare_vweb_kmeans(vweb=web_df, l=th)
 
 
 '''
@@ -395,11 +411,6 @@ envirs_sort, colors_sort = order_by_delta(n_clusters=4, web_df=web_df)
 out_evs_new = 'output/kmeans_new_' + vers
 f_out = out_evs_new + str_grid + '.png'
 wt.plot_new(labels=kmeans.labels_, data=web_ev_df, f_out=f_out)
-
-out_evs_3d = 'output/kmeans_3d_' + vers
-f_out = out_evs_3d + str_grid + '.png'
-wt.plot3d(labels=kmeans.labels_, data=web_ev_df, f_out=f_out)
-
 # TODO there should be some loop on the environments here
 env_type = ''
 f_out_base = ''
