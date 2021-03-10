@@ -225,8 +225,10 @@ def generate_random(data=None, grid=None, prior='flat', verbose=False, mode='sim
 
 
 @t.time_total
-def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor=10, visualize=False, elbow=True):
+def evaluate_metrics(data=None, n_clusters_max=10, n_init=10, rescale_factor=10, visualize=False, elbow=True):
     """ Evaluate different metrics to estimate the best k for the cluster number """
+
+    print('evaluate_metrics()')
 
     if elbow == False:
         sil_score = []
@@ -290,21 +292,55 @@ def evaluate_metrics(data=None, n_clusters_max=None, n_init=10, rescale_factor=1
         model = KMeans()
         X = data.values
         visualizer = KElbowVisualizer(model, k=(2, n_clusters_max), timings=False)
+        visualizer.fit(X)        
+        print(visualizer.k_scores_)
 
         if visualize:
-            visualizer.fit(X)        
             visualizer.show()
+            plt.grid(False)
+            plt.legend(False)
             plt.show()
 
         print('Elbow Method score for Calinski-Harabasz...')
-        visualizer = KElbowVisualizer(model, k=(2, n_clusters_max), timings=False, metric='calinski_harabasz', locate_elbow=True)
+        #visualizer = KElbowVisualizer(model, k=(2, n_clusters_max), timings=False, metric='calinski_harabasz', locate_elbow=True)
+        print(visualizer.k_scores_)
 
         if visualize:
             visualizer.fit(X)        
             visualizer.show()
             plt.show()
 
-    return kmeans
+    #return model
+
+
+def elbow_visualize():
+    
+    f_elbow = 'output/elbow.csv'
+    
+    data = pd.read_csv(f_elbow)
+    fac = 1.e+4
+    ymin = data['score'].min()
+    ymax = data['score'].max()
+    xs = [4, 4, 4]
+    ys = [1, 100, ymax * 2]
+
+
+    size=20
+    plt.figure(figsize=(8,7))
+    plt.grid(False)
+    plt.ylim([0.8 * ymin / fac, 1.1 * ymax/fac])
+    plt.xlabel('k', fontsize=size)
+    plt.ylabel(r'distortion score $\quad$ [$10^4$]', fontsize=size)
+
+    plt.plot(data['k'].values, data['score'].values/fac, color='blue', linewidth=5)
+    plt.plot(np.array(xs), np.array(ys)/fac, color='black', linestyle='--')
+    plt.xticks(fontsize=size)
+    plt.yticks(fontsize=size)
+    plt.tight_layout()
+    plt.savefig('output/elbow_score.png')
+    plt.cla()
+    plt.clf()
+    plt.close()
 
 
 def check_env(l1, l2, l3, thresh=None):

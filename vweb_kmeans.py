@@ -144,16 +144,16 @@ def plot_cmp():
 
     
     fontsize = 20
-    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(10, 8))
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
 
     plt.grid(False)
-    plt.plot(data['lambda'].values, data['tot'].values, color='red', label='tot')
-    plt.plot(data['lambda'].values, data['avg'].values, color='black', label='avg')
+    plt.plot(data['lambda'].values, data['tot'].values, color='black', label='tot', linewidth=5)
+    plt.plot(data['lambda'].values, data['avg'].values, color='blue', label='avg', linewidth=5)
     plt.legend(fontsize=fontsize)
     plt.xlabel(r'$\lambda_{thr}$', fontsize=fontsize)
-    plt.ylabel('Share of matching cells', fontsize=fontsize)
+    plt.ylabel('Fraction of matching cells', fontsize=fontsize)
     plt.tight_layout()
     #plt.show()
     plt.savefig('output/kmeans_threshold_cmp.png')
@@ -202,10 +202,12 @@ if __name__ == "__main__":
     #box = 500.0; thick = 5.0
     box = 100.0; thick = 2.0
 
-    #plot_cmp()
+    wt.elbow_visualize()
+    plot_cmp()
+
     web_df = pd.read_csv(file_base + web_file, dtype=float)
     web_df = gen_coord(data=web_df)
-
+    '''
     n_clusters = 4
     n_init = 1
 
@@ -227,7 +229,7 @@ if __name__ == "__main__":
             f_out = 'output/kmeans_oldvweb' + str_grid + '_l' + str(thresh)
             web_df = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=False)
             wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
-
+    '''
     cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
 
     n_clusters = 4
@@ -251,6 +253,8 @@ if __name__ == "__main__":
         web_df.to_csv(web_kmeans_file)
         print('Done.')
         
+    wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
+
     f_out = 'output/kmeans_' + str_grid 
     envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=4, web_df=web_df, centers=centers)
     wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
