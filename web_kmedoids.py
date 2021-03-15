@@ -1,6 +1,6 @@
 """
     MLEKO
-    Machine Learning Ecosystem for KOsmology 
+    Machine Learning Environment for KOsmology 
 
     (C) Edoardo Carlesi 2020
     https://github.com/EdoardoCarlesi/MLEKO

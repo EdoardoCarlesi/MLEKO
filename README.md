@@ -1,6 +1,6 @@
-MLEKO: Machine Learning Ecosystem for KOsmology 
+MLEKO: Machine Learning Environment for KOsmology 
 
-by Edoardo Carlesi (2020), ecarlesi83@gmail.com
+by Edoardo Carlesi (2020-2021), ecarlesi83@gmail.com
 
 
 This is a collection of Machine Learning based tools for cosmological simulation data, written in Python.

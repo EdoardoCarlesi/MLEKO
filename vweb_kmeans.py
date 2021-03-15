@@ -141,9 +141,8 @@ def plot_cmp():
     lTotMax = data[data['tot'] == totMax]['lambda']
     print('AvgMax: ', lAvgMax)
     print('TotMax: ', lTotMax)
-
     
-    fontsize = 20
+    fontsize = 30
     plt.figure(figsize=(10, 8))
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
@@ -174,7 +173,7 @@ if __name__ == "__main__":
 
     plotNew = False
     plotStd = True
-    plot3d = True
+    plot3d = False
     plotKLV = False
     plotEVs = False
     plotLambdas = False
@@ -186,17 +185,19 @@ if __name__ == "__main__":
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/FullBox/'
     file_ascii = '/home/edoardo/CLUES/TEST_DATA/VWeb/vweb_2048.000128.Vweb-ascii'
     #file_base = '/home/edoardo/CLUES/TEST_DATA/VWeb/'
-    file_base = '/home/edoardo/CLUES/DATA/VWeb/'
+    #file_base = '/home/edoardo/CLUES/DATA/VWeb/'
+    file_base = '/home/edoardo/CLUES/DATA/LGF/512/05_14/'
     #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
     #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
     #web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
-    web_file = 'vweb_2048.000128.csv'; str_grid = '_grid128'; grid = 128
+    #web_file = 'vweb_2048.000128.csv'; str_grid = '_grid128'; grid = 128
+    web_file = 'vweb_512_128_054.000128.Vweb.csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_2048.000128.Vweb-ascii'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_25_15.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_00_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128; normalize = True
 
-    web_kmeans_file = file_base + 'vweb_kmeans_k4_n128.csv'
+    web_kmeans_file = file_base + 'vweb_kmeans.csv'
 
     #box = 500.0e+3; thick = 7.0e+3
     #box = 500.0; thick = 5.0
@@ -207,12 +208,17 @@ if __name__ == "__main__":
 
     web_df = pd.read_csv(file_base + web_file, dtype=float)
     web_df = gen_coord(data=web_df)
-    '''
+
+    # Rescale the coordinates
+    web_df['x'] = web_df['x'].values - box * 0.5
+    web_df['y'] = web_df['y'].values - box * 0.5
+
     n_clusters = 4
     n_init = 1
 
     #threshold_list = [0.0, 0.1, 0.2]
     threshold_list = [0.22, 0.26]
+    #threshold_list = []
 
     # Check out that the vweb coordinates should be in Mpc units
     if normalize == True:
@@ -227,9 +233,10 @@ if __name__ == "__main__":
 
         for thresh in threshold_list:
             f_out = 'output/kmeans_oldvweb' + str_grid + '_l' + str(thresh)
-            web_df = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=False)
+            title_str = r'$\lambda _{thr}=$' + str(thresh)
+            web_df = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=True, title=title_str)
             wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
-    '''
+
     cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
 
     n_clusters = 4
@@ -253,12 +260,13 @@ if __name__ == "__main__":
         web_df.to_csv(web_kmeans_file)
         print('Done.')
         
-    wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
+    #wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
 
     f_out = 'output/kmeans_' + str_grid 
     envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=4, web_df=web_df, centers=centers)
     wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
-    wt.plot_vweb(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort)
+    title_str = r'$k$-means'
+    wt.plot_vweb(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort, title=title_str)
 
     web_df['envk_std'] = kmeans.labels_
     web_df = wt.order_kmeans(data=web_df)

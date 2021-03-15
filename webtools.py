@@ -1,6 +1,6 @@
 """
     MLEKO
-    Machine Learning Ecosystem for KOsmology
+    Machine Learning Environment for KOsmology
 
     (C) Edoardo Carlesi 2020
     https://github.com/EdoardoCarlesi/MLEKO
@@ -326,7 +326,7 @@ def elbow_visualize():
 
 
     size=20
-    plt.figure(figsize=(8,7))
+    plt.figure(figsize=(9,7))
     plt.grid(False)
     plt.ylim([0.8 * ymin / fac, 1.1 * ymax/fac])
     plt.xlabel('k', fontsize=size)
@@ -443,7 +443,7 @@ def order_kmeans(data=None, nk=4):
 
 
 @t.time_total
-def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False, do_plot=True):
+def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False, do_plot=True, title=None):
     """ Plot the usual vweb using an input threshold and a given dataset """
     
     envs = [0, 1, 2, 3]
@@ -459,8 +459,8 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
     data = data[data['z'] < z_max]
 
     shift = box * 0.5
-    data['x'] = data['x'].apply(lambda x: x - shift)
-    data['y'] = data['y'].apply(lambda x: x - shift)
+    #data['x'] = data['x'].apply(lambda x: x - shift)
+    #data['y'] = data['y'].apply(lambda x: x - shift)
 
     if box > 1e+4:
         data['x'] = data['x'] / 1e+3
@@ -510,7 +510,7 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
 
     if do_plot:
 
-        fontsize = 20
+        fontsize = 25
 
         if grid == 32:
             size = 40
@@ -523,21 +523,27 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
 
         # Plot the eigenvaule threshold based V-Web
         plt.figure(figsize=(10, 10))
+        plt.rcParams["axes.edgecolor"] = "0.0"
+        plt.rcParams["axes.linewidth"]  = 1
         plt.xlim([-shift, shift])
         plt.ylim([-shift, shift])
+
         plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
         plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
         plt.xticks(fontsize=fontsize)
         plt.yticks(fontsize=fontsize)
 
-        if use_thresh:
-            plt.title('$\lambda_{thr} = $' + str(thresh), fontsize=fontsize)
+        #if use_thresh:
+        if title != None:
+            plt.title(title, fontsize=fontsize)
 
         size = 30
         plt.scatter(voids['x'], voids['y'], c='lightgrey', s=size, marker='s')
         plt.scatter(sheet['x'], sheet['y'], c='grey', s=size, marker='s')
         plt.scatter(filam['x'], filam['y'], c='black', s=size, marker='s')
         plt.scatter(knots['x'], knots['y'], c='red', s=size, marker='s')
+        plt.rcParams["axes.edgecolor"] = "0.0"
+        plt.rcParams["axes.linewidth"]  = 1
 
         # Save file
         f_out = fout + '_' + str(thresh).replace('.','') + '.png'
