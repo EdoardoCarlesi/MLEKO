@@ -314,16 +314,26 @@ def evaluate_metrics(data=None, n_clusters_max=10, n_init=10, rescale_factor=10,
 
 
 def elbow_visualize():
-    
+    """ Plot the curve to find the optimal k value """
+
     f_elbow = 'output/elbow.csv'
     
     data = pd.read_csv(f_elbow)
     fac = 1.e+4
-    ymin = data['score'].min()
-    ymax = data['score'].max()
+    ymin = data['scoreE'].min()
+    ymax = data['scoreE'].max()
     xs = [4, 4, 4]
     ys = [1, 100, ymax * 2]
 
+    scores = data['scoreE'].values
+    diff = np.zeros(len(data))
+
+    for s in range(1, len(data)-1):
+        diff[s] = (scores[s-1] - scores[s]) / (scores[s] - scores[s+1]) 
+
+    #print(diff * fac)
+    diff = np.array([0., 15714.28571429, 23333.33333333, 12500., 12000., 11000., 8571.42857143, 7333.33333333, 0.])
+    #print(diff)
 
     size=20
     plt.figure(figsize=(9,7))
@@ -332,10 +342,12 @@ def elbow_visualize():
     plt.xlabel('k', fontsize=size)
     plt.ylabel(r'distortion score $\quad$ [$10^4$]', fontsize=size)
 
-    plt.plot(data['k'].values, data['score'].values/fac, color='blue', linewidth=5)
+    plt.plot(data['k'].values, data['scoreE'].values/fac, color='blue', linewidth=5, label=r'$W(k)$')
+    plt.plot(data['k'].values, 10. * diff/fac, color='black', linewidth=3, label=r'$10 \times \Delta W $')
     plt.plot(np.array(xs), np.array(ys)/fac, color='black', linestyle='--')
     plt.xticks(fontsize=size)
     plt.yticks(fontsize=size)
+    plt.legend(fontsize=size)
     plt.tight_layout()
     plt.savefig('output/elbow_score.png')
     plt.cla()
