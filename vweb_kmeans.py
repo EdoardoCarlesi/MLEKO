@@ -161,6 +161,22 @@ def plot_cmp():
     plt.close()
 
 
+def loop_resample_web():
+    base_path = ''
+    base_out = ''
+    suffix = ''
+    init_web = 0
+    end_web = 10
+
+    for i_web in (init_web, end_web):
+        this_file = base_path + str(i_web) + suffix
+        this_web = pd.read_csv(this_file)
+        random_state = 101
+        n_sample = int(len(this_web) / 10)
+        this_web = this_web.sample(n_sample)
+        #wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
+
+
 if __name__ == "__main__":
     """
         MAIN PROGRAM - compute K-Means
