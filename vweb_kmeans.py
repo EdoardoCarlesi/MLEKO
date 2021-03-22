@@ -114,6 +114,47 @@ def gen_coord(data=None, grid=128, box=100.0, cols=['x','y','z']):
     return data
 
 
+def plot_halo_webtype(file_webtype=None, correct_type=False):
+    """ Plot halos partitioned by webtype """
+
+    halos_wt = pd.read_csv(file_webtype)
+    
+    '''
+    if correct_type:
+        halos_wt[halos_wt['kmeans'] == 2] = 2
+        halos_wt[halos_wt['kmeans'] == 1] = 1
+        #halos_wt[halos_wt['kmeans'] == 5] = 1
+    '''
+
+    halos_wt = halos_wt[halos_wt['M'] > 1.0e+13]
+    n_tot = float(len(halos_wt))
+    m_tot = halos_wt['M'].max()
+
+    #print(halos_wt.head())
+    #print(halos_wt['M'].min()/1.0e+9)
+
+    halos_wt['Mlog'] = np.log10(halos_wt['M'])
+    m_min = halos_wt['Mlog'].min()
+    m_max = halos_wt['Mlog'].max()
+    n_bins = 1000
+    step = (m_max - m_min) / n_bins
+
+    for i in range(0, 4):
+        kmeans = halos_wt[halos_wt['kmeans'] == i]
+        vweb = halos_wt[halos_wt['vweb'] == i]
+        n_kmeans = len(kmeans)
+        n_vweb = len(vweb)
+        #m_k = np.sum()
+
+        print(f'Env: {i}, {n_kmeans/n_tot} {n_vweb/n_tot}')
+
+    #for i in range(0, n_bins):
+
+
+
+    return halos_wt
+
+
 def plot_cmp():
     """ Compare the results of the k-means vs. standard threshold """
 
@@ -162,9 +203,7 @@ def plot_cmp():
 
 
 if __name__ == "__main__":
-    """
-        MAIN PROGRAM - compute K-Means
-    """
+    """ MAIN PROGRAM - compute K-Means """
 
     # Program Options: what should we run / analyze?
     normalize = False
@@ -186,28 +225,40 @@ if __name__ == "__main__":
     file_ascii = '/home/edoardo/CLUES/TEST_DATA/VWeb/vweb_2048.000128.Vweb-ascii'
     #file_base = '/home/edoardo/CLUES/TEST_DATA/VWeb/'
     #file_base = '/home/edoardo/CLUES/DATA/VWeb/'
-    file_base = '/home/edoardo/CLUES/DATA/LGF/512/05_14/'
+    #file_base = '/home/edoardo/CLUES/DATA/LGF/512/05_14/'
+    file_base = '/home/edoardo/CLUES/DATA/FullBox/17_11/'
     #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
     #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
     #web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_2048.000128.csv'; str_grid = '_grid128'; grid = 128
-    web_file = 'vweb_512_128_054.000128.Vweb.csv'; str_grid = '_grid128'; grid = 128
+    #web_file = 'vweb_512_128_054.000128.Vweb.csv'; str_grid = '_grid128'; grid = 128
+    web_file = 'vweb_17_11.ascii.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_2048.000128.Vweb-ascii'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_25_15.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_00_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128; normalize = True
 
     web_kmeans_file = file_base + 'vweb_kmeans.csv'
+    #kmeans_file = 'output/kmeans.pkl'
+    kmeans_file = 'output/kmeans_new.pkl'
+
+    halo_webtype_file = 'output/halos_webtype.csv'
 
     #box = 500.0e+3; thick = 7.0e+3
     #box = 500.0; thick = 5.0
-    box = 100.0; thick = 2.0
+    box = 100.0; thick = 5.0
 
-    wt.elbow_visualize()
-    plot_cmp()
+    #wt.elbow_visualize()
+    #plot_cmp()
+    #plot_halo_webtype(file_webtype=halo_webtype_file, correct_type=False); exit()
 
     web_df = pd.read_csv(file_base + web_file, dtype=float)
     web_df = gen_coord(data=web_df)
+    web_df.to_csv(file_base + web_file)
+
+
+    print(len(web_df))
+    print(web_df.head())
 
     # Rescale the coordinates
     web_df['x'] = web_df['x'].values - box * 0.5
@@ -217,7 +268,8 @@ if __name__ == "__main__":
     n_init = 1
 
     #threshold_list = [0.0, 0.1, 0.2]
-    threshold_list = [0.22, 0.26]
+    #threshold_list = [0.22, 0.26]
+    threshold_list = [0.22]
     #threshold_list = []
 
     # Check out that the vweb coordinates should be in Mpc units
@@ -230,12 +282,16 @@ if __name__ == "__main__":
         web_df['l3'] = web_df['l3'] / norm
 
     if plotStd == True: 
-
         for thresh in threshold_list:
-            f_out = 'output/kmeans_oldvweb' + str_grid + '_l' + str(thresh)
+
+            web_df['env'] = web_df[['l1', 'l2', 'l3']].apply(lambda x: wt.find_env(*x, thresh), axis=1)
+            vweb_env = np.array(web_df['env'].values, dtype=int)
+
+            f_out = 'output/kmeans_newvweb' + str_grid + '_l' + str(thresh)
+            #f_out = 'output/kmeans_oldvweb' + str_grid + '_l' + str(thresh)
             title_str = r'$\lambda _{thr}=$' + str(thresh)
-            web_df = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=True, title=title_str)
-            wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
+            #web_df_slice = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=False, title=title_str)
+            #wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
 
     cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
 
@@ -244,10 +300,12 @@ if __name__ == "__main__":
 
     if read_kmeans:
 
-        print('Loading k-means from output/kmeans.pkl')
+        print('Loading k-means from ', kmeans_file)
         web_df = pd.read_csv(web_kmeans_file)
-        kmeans = pickle.load(open('output/kmeans.pkl', 'rb'))
+        kmeans = pickle.load(open(kmeans_file, 'rb'))
         centers = kmeans.cluster_centers_
+        kmeans_env = kmeans.labels_
+        print('Done.')
 
     else:
 
@@ -255,11 +313,22 @@ if __name__ == "__main__":
         kmeans = KMeans(n_clusters=n_clusters, n_init=n_init)
         kmeans.fit(web_df[cols_select])
         centers = kmeans.cluster_centers_
-        pickle.dump(kmeans, open('output/kmeans.pkl', 'wb'))
+        pickle.dump(kmeans, open(kmeans_file, 'wb'))
         web_df['env'] = kmeans.labels_
         web_df.to_csv(web_kmeans_file)
         print('Done.')
         
+    #print(len(vweb_env))
+    #print(len(kmeans_env))
+
+    print('Assigning halos to nearest node / environment type')
+    halos_web = wt.assign_halos_to_environment_type(vweb=vweb_env, kmeans=kmeans_env, snap_end=1)
+    #halos_web.to_csv(halo_webtype_file)
+    print('Done')
+
+
+
+'''
     #wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
 
     f_out = 'output/kmeans_' + str_grid 
@@ -290,7 +359,6 @@ if __name__ == "__main__":
             wt.compare_vweb_kmeans(vweb=web_df, l=th)
 
 
-'''
     if doYehuda:
 
         n_clusters_tot = [2, 3, 4, 5, 6, 7, 8, 9, 10] 

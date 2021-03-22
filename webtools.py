@@ -13,12 +13,27 @@ import pandas as pd
 import seaborn as sns
 import numpy as np
 import tools as t
+import pickle as pkl
+import read_files as rf
 
 from sklearn.metrics import silhouette_score, homogeneity_score, calinski_harabasz_score, silhouette_samples
 from yellowbrick.cluster import KElbowVisualizer
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+
+
+def find_env(l1, l2, l3, thresh):
+    """ Find environment type """
+
+    if l1 < thresh:
+        return 0.
+    elif l1 > thresh and l2 < thresh:
+        return 1.
+    elif l2 > thresh and l3 < thresh:
+        return 2.
+    elif l3 > thresh:
+        return 3.
 
     
 def plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=None, grid=None): 
@@ -69,6 +84,71 @@ def plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=Non
     plt.savefig(file_out)
     plt.clf()
     plt.cla()
+
+
+def assign_halos_to_environment_type(snap_ini=0, snap_end=5, vweb=None, kmeans=None):
+    """ Given a snapshot / series of snapshots read the halo catalog and make it into different environment types """
+
+    base_path = '/home/edoardo/CLUES/DATA/FullBox/17_11/snapshot_127.'
+    suffix = '.z0.000.AHF_halos'
+    
+    # We will save the halos into a list of the form [halo_mass, type_kmeans, type_vweb]
+    halo_env = []
+
+    # Vweb and kmeans are arrays with index = ix + n * iy + n * n * iz
+    x_col = ['Xc(6)', 'Yc(7)', 'Zc(8)']
+    m_col = 'Mvir(4)'
+    fac = 1.0e+3
+
+    for snap_i in range(snap_ini, snap_end):
+        snap_str = '%04d' % snap_i
+        this_ahf = base_path + snap_str + suffix
+
+        if snap_i == 0:
+            this_halos = rf.read_ahf_halo(this_ahf)
+            columns = list(this_halos.columns)
+
+            # The columns are not sorted correctly so we need to add a dummy label at the beginning and remove the last one for consistency
+            columns.insert(0, 'Dummy')
+            columns.remove(columns[-1])
+
+        else:
+            this_halos = rf.read_ahf_halo(this_ahf, use_header=True, header=columns)
+        
+        for i, row in this_halos.iterrows():
+            this_m = row[m_col]
+            this_x = row[x_col].T / fac
+            index = find_nearest_node_index(x=this_x, grid=128, box=100.0)
+
+            vweb_type = vweb[index]
+            kmeans_type = kmeans[index]
+
+            this_halo_env = [this_m, kmeans_type, vweb_type]
+    
+            halo_env.append(this_halo_env)
+
+            print(index, this_x.values, this_m/1.e+10, vweb_type, kmeans_type)
+            #print(this_halos.head())
+
+    cols = np.array(halo_env)
+    data = pd.DataFrame(data=cols, columns=['M', 'kmeans', 'vweb'])
+    
+    print(data.head())
+
+    return data
+
+
+def find_nearest_node_index(x=None, grid=None, box=None):
+    """ Given a point x in space, find the nearest grid point once a grid has been placed on the box """
+
+    cell = box / grid
+    ix = np.floor(x[0] / cell)
+    iy = np.floor(x[1] / cell)
+    iz = np.floor(x[2] / cell)
+
+    index = int(ix + grid * iy + grid * grid * iz)
+
+    return index
 
 
 def plot_new_format(data=None, f_out=None, labels=None):
@@ -467,38 +547,26 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
     z_min = box * 0.5 - thick
     z_max = box * 0.5 + thick
 
-    data = data[data['z'] > z_min]
-    data = data[data['z'] < z_max]
+    data_slice = data[data['z'] > z_min]
+    data_slice = data[data['z'] < z_max]
 
     shift = box * 0.5
     #data['x'] = data['x'].apply(lambda x: x - shift)
     #data['y'] = data['y'].apply(lambda x: x - shift)
 
     if box > 1e+4:
-        data['x'] = data['x'] / 1e+3
-        data['y'] = data['y'] / 1e+3
-        data['z'] = data['z'] / 1e+3
+        data_slice['x'] = data_slice['x'] / 1e+3
+        data_slice['y'] = data_slice['y'] / 1e+3
+        data_slice['z'] = data_slice['z'] / 1e+3
         shift = shift / 1e+3
 
     if use_thresh:
         print(f'Plotting web with lambda threshold {thresh}')
-        voids = data[data['l1'] < thresh]
-        sheet = data[(data['l2'] < thresh) & (data['l1'] > thresh)]
-        filam = data[(data['l2'] > thresh) & (data['l3'] < thresh)]
-        knots = data[data['l3'] > thresh]
-
-        def find_env(l1, l2, l3):
-
-            if l1 < thresh:
-                return 0.
-            elif l1 > thresh and l2 < thresh:
-                return 1.
-            elif l2 > thresh and l3 < thresh:
-                return 2.
-            elif l3 > thresh:
-                return 3.
-
-        data['env'] = data[['l1', 'l2', 'l3']].apply(lambda x: find_env(*x), axis=1)
+        voids = data_slice[data_slice['l1'] < thresh]
+        sheet = data_slice[(data_slice['l2'] < thresh) & (data_slice['l1'] > thresh)]
+        filam = data_slice[(data_slice['l2'] > thresh) & (data_slice['l3'] < thresh)]
+        knots = data_slice[data_slice['l3'] > thresh]
+        data_slice['env'] = data_slice[['l1', 'l2', 'l3']].apply(lambda x: find_env(*x, thresh), axis=1)
 
     else:
         print(f'Plotting web with pre-computed environment class')
@@ -507,12 +575,12 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
         ind_filam = np.where(ordered_envs == 2)
         ind_knots = np.where(ordered_envs == 3)
         
-        print(ind_voids, ind_sheet, ind_filam, ind_knots[0])
+        #print(ind_voids, ind_sheet, ind_filam, ind_knots[0])
 
-        voids = data[data['env'] == ind_voids[0][0]]
-        sheet = data[data['env'] == ind_sheet[0][0]]
-        filam = data[data['env'] == ind_filam[0][0]]
-        knots = data[data['env'] == ind_knots[0][0]]
+        voids = data_slice[data_slice['env'] == ind_voids[0][0]]
+        sheet = data_slice[data_slice['env'] == ind_sheet[0][0]]
+        filam = data_slice[data_slice['env'] == ind_filam[0][0]]
+        knots = data_slice[data_slice['env'] == ind_knots[0][0]]
 
     n_pts = float(len(data))
     #str_env_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (len(voids)/n_pts, len(sheet)/n_pts, len(filam)/n_pts, len(knots)/n_pts)
@@ -593,7 +661,7 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
             plt.cla()
             plt.clf()
 
-    return data
+    return data_slice
 
 
 def check_distribution(values):
@@ -835,6 +903,8 @@ def plot_lambda_distribution(data=None, grid=128, base_out=None, env_col='env', 
 
 if __name__ == "__main__":
     """ Main program, used for debugging and testing """
+
+    assign_halos_to_environment_type()
 
     pass
 
