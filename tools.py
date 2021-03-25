@@ -18,10 +18,17 @@ import glob, os
 #import cv2
 
 
+def find_max_index(x):
+    """ Return the position in the array of a max value """
+
+    x_max = max(x)
+    ind_max = np.where(x == x_max)
+    
+    return ind_max[0][0]
+
+
 def time_total(function):
-    """
-        Simple decorator to compute the time used by a given function
-    """
+    """ Simple decorator to compute the time used by a given function """
     
     @functools.wraps(function)
     def wrapper(*args, **kwargs):
@@ -37,15 +44,13 @@ def time_total(function):
 
 
 def distance(v0, v1):
-
+    """ Euclidean distance between two points """
     v = (v0 - v1)**2
     return np.sqrt(np.sum(v))
 
 
 def percentiles(x=None, perc=[20, 50, 80]):
-    """
-        Find the percentiles and error bars
-    """
+    """ Find the percentiles and error bars """
 
     pct = np.percentile(x, perc)
 

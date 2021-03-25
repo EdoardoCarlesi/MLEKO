@@ -371,7 +371,7 @@ def evaluate_metrics(data=None, n_clusters_max=10, n_init=10, rescale_factor=10,
         print('Elbow Method score...')
         model = KMeans()
         X = data.values
-        visualizer = KElbowVisualizer(model, k=(2, n_clusters_max), timings=False)
+        visualizer = KElbowVisualizer(model, k=(2, n_clusters_max+1), timings=False)
         visualizer.fit(X)        
         print(visualizer.k_scores_)
 
@@ -383,14 +383,26 @@ def evaluate_metrics(data=None, n_clusters_max=10, n_init=10, rescale_factor=10,
 
         print('Elbow Method score for Calinski-Harabasz...')
         #visualizer = KElbowVisualizer(model, k=(2, n_clusters_max), timings=False, metric='calinski_harabasz', locate_elbow=True)
-        print(visualizer.k_scores_)
+        #print(visualizer.k_scores_)
 
         if visualize:
             visualizer.fit(X)        
             visualizer.show()
             plt.show()
 
-    #return model
+    return visualizer.k_scores_
+
+
+def elbow_diff(scores):
+    """ Compute the optimal k peak value """
+        
+    n_s = len(scores)
+    diff = np.zeros(n_s)
+
+    for s in range(1, n_s-1):
+        diff[s] = (scores[s-1] - scores[s]) / (scores[s] - scores[s+1]) 
+    
+    return diff
 
 
 def elbow_visualize():
@@ -406,13 +418,9 @@ def elbow_visualize():
     ys = [1, 100, ymax * 2]
 
     scores = data['scoreE'].values
-    diff = np.zeros(len(data))
-
-    for s in range(1, len(data)-1):
-        diff[s] = (scores[s-1] - scores[s]) / (scores[s] - scores[s+1]) 
-
+    diff = elbow_diff(scores)
     #print(diff * fac)
-    diff = np.array([0., 15714.28571429, 23333.33333333, 12500., 12000., 11000., 8571.42857143, 7333.33333333, 0.])
+    #diff = np.array([0., 15714.28571429, 23333.33333333, 12500., 12000., 11000., 8571.42857143, 7333.33333333, 0.])
     #print(diff)
 
     size=20
@@ -503,7 +511,8 @@ def compare_vweb_kmeans(vweb=None, l=0.0):
         #print(f'Env: {env}, Tot: {n_tot}, Shared: {n_shared}, Perc: {n_env_shared/tot_env}')
 
     average = np.mean(n_env_shared/tot_env)
-    print(f'Global shared values: {l},{len(diffs[diffs_inds])/n_all},{average},{n_env_shared/tot_env}')
+    total = len(diffs[diffs_inds])/n_all
+    print(f'Global shared values: {l},{total},{average},{n_env_shared/tot_env}')
 
     for env in [0, 1, 2, 3]:
         n_tot = len(vweb[vweb['env'] == env])
@@ -511,6 +520,8 @@ def compare_vweb_kmeans(vweb=None, l=0.0):
         n_shared = len(tmp[tmp['env'] == env])
         
         #print(f'(inverse check) Env: {env}, Tot: {n_tot}, Shared: {n_shared} Perc: {n_shared/n_tot}')
+
+    return average, total
 
 
 def order_kmeans(data=None, nk=4):    

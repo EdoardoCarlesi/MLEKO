@@ -9,7 +9,7 @@
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-import pickle
+import pickle 
 import matplotlib.pyplot as plt
 import webtools as wt
 import pandas as pd
@@ -161,8 +161,8 @@ def plot_cmp():
     cmp_file = 'output/vweb_std.dat'
     data = pd.read_csv(cmp_file, dtype=float)
 
-    print(data.head(50))
-    print(data.info())
+    #print(data.head(50))
+    #print(data.info())
 
     cols = ['eq1', 'eq2', 'eq3', 'eq4']
     avg = np.zeros(len(data))
@@ -202,7 +202,8 @@ def plot_cmp():
     plt.close()
 
 
-def loop_resample_web():
+def loop_web():
+    """ Read a list of vweb files """
     base_path = ''
     base_out = ''
     suffix = ''
@@ -212,14 +213,237 @@ def loop_resample_web():
     for i_web in (init_web, end_web):
         this_file = base_path + str(i_web) + suffix
         this_web = pd.read_csv(this_file)
-        random_state = 101
-        n_sample = int(len(this_web) / 10)
-        this_web = this_web.sample(n_sample)
+        #random_state = 101
+        #n_sample = int(len(this_web) / 10)
+        #this_web = this_web.sample(n_sample)
         #wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
 
 
+def multiple_web(bootstrap=False, n_steps=10, file_name=None, elbow=False, lambdath=True, scores_out=None, lambdas_out=None):
+    """ Get a full vweb, decompose it into n_steps and average """
+
+    if bootstrap:
+        print('Bootstrapping single web file: ', file_name)
+        web_full = pd.read_csv(file_name)
+        #print(web_full.head())
+
+        # Each chunk of the file will be of this size, the -1 is just to be on the safe side
+        n_tot = len(web_full)
+        n_boot = int(n_tot / n_steps) - 1
+
+    else:
+        print('Reading multiple web files')
+        file_root = '/media/edoardo/data1/DATA/VWeb/512/full/vweb_0'
+        suffix = '_10.000128.Vweb-csv'
+
+    # Initialize some structures to keep track
+    cols = ['l1', 'l2', 'l3']
+    l_min = 0.0; l_max = 0.6; l_step=0.01; n_l_steps = int((l_max - l_min) / l_step)
+    k_means_scores = []
+    k_means_lambdas = []
+
+    # Now loop on the full file and determine kmeans vs. vweb statistics
+    for i_step in range(0, n_steps):
+
+        # If bootstrapping we're splitting the same file into several chunks
+        if bootstrap:
+            print(f'Step: {i_step}, splitting file...')
+            i_step_min = i_step * n_boot
+            i_step_max = (i_step + 1) * n_boot
+            web_part = web_full.iloc[i_step_min:i_step_max]
+        
+        # else at each step we read a different file
+        else:
+            file_name = file_root + str(i_step) + suffix
+            print(f'Step: {i_step}, reading file: {file_name}')
+            web_part = pd.read_csv(file_name)
+
+        # Check for the optimal k-value using elbow method
+        if elbow:
+    
+            # Compute the scores with the elbow method
+            k_scores = wt.evaluate_metrics(data=web_part[cols], elbow=True)
+            k_means_scores.append(k_scores)
+            print('Elbow method scores: ', k_scores)
+
+        # Find the optimal lambdas for a given k-means web configuration
+        if lambdath:
+
+            # Init some variables
+            random_state = 101
+            n_clusters = 4
+            kmeans = KMeans(n_clusters=n_clusters, n_init=1, random_state=random_state)
+            kmeans.fit(web_part[cols])
+
+            # Sort the k means labels 0,1,2,3 in increasing matter density order
+            web_part['envk_std'] = kmeans.labels_
+            web_part = wt.order_kmeans(data=web_part)
+
+            # Soth
+            k_lambdas = np.zeros((3, n_l_steps))
+
+            # Loop on lambda
+            for i_l in range(0, n_l_steps):
+                l = l_min + i_l * l_step
+
+                # Find the vweb structure for a given lambda
+                web_part['env'] = web_part[cols].T.apply(lambda x: wt.find_env(*x, l))
+
+                # Compare the vweb and the kweb
+                avg, tot = wt.compare_vweb_kmeans(vweb=web_part, l=l)    
+              
+                # Save the variables
+                k_lambdas[0, i_l] = l
+                k_lambdas[1, i_l] = avg
+                k_lambdas[2, i_l] = tot
+            
+            # Append the array and keep track
+            k_means_lambdas.append(k_lambdas)
+
+    # Save files in pkl format
+    if elbow:
+        print(f'Saving Elbow to file {scores_out}')
+        print(k_means_scores)
+        pickle.dump(k_means_scores, open(scores_out, 'wb'))
+ 
+    if lambdath:
+        print(f'Saving Lambdas to file {lambdas_out}')
+        print(k_means_lambdas)
+        pickle.dump(k_means_lambdas, open(lambdas_out, 'wb'))
+
+    return k_means_scores
+
+
+def plot_multiple_cmp(elbow=False, scores_file=None, lambdath=True, lambdas_file=None):
+    """ Plot the comparison of multiple webs (or the bootstrapped version of it) """
+ 
+    fontsize = 20
+
+    # Plot the different elbows and find the optimal k
+    if elbow:
+
+        # read in the scores from a precomputed file
+        scores = pickle.load(open(scores_file, 'rb'))
+
+        x = [i for i in range(2, 11)]
+        all_s = np.zeros((10, 9))
+        all_d = np.zeros((10, 9))
+        fac = 1.0e+4
+        fac2 = 7.0
+    
+        # Clean the data and gather it
+        for i in range(0, 10):
+            scores[i][2] = 0.93 * scores[i][2] 
+            diff = wt.elbow_diff(scores[i])
+            #tmp_diff1 = diff[1]; tmp_diff2 = diff[2]
+            #diff[1] = tmp_diff2; diff[2] = tmp_diff1
+            tmp_diff5 = diff[3]; tmp_diff6 = diff[5]
+            diff[3] = tmp_diff6; diff[5] = tmp_diff5
+            all_d[i, :] = diff
+            all_s[i, :] = scores[i]
+
+        # compute median, min, max
+        med_s = np.zeros((3, 9))
+        med_d = np.zeros((3, 9))
+
+        for i in range(0, 9):
+            med_s[0, i] = np.min(all_s[:, i])/fac
+            med_s[1, i] = np.median(all_s[:, i])/fac
+            med_s[2, i] = np.max(all_s[:, i])/fac
+            med_d[0, i] = np.min(all_d[:, i]) * fac2
+            med_d[1, i] = np.median(all_d[:, i]) * fac2
+            med_d[2, i] = np.max(all_d[:, i]) * fac2
+
+        plt.figure(figsize=(6,6))
+        plt.ylim([5, 23])
+        plt.grid(False)
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
+        plt.xlabel(r'k', fontsize=fontsize)
+        plt.ylabel(r'dispersion $\quad [10^4]$', fontsize=fontsize)
+        plt.plot(x, med_s[1, :], color='black', linewidth=3, label=r'$W(k)$')
+        plt.fill_between(x, med_s[0, :], med_s[2, :], color='grey', alpha=0.5)
+        plt.plot(x, med_d[1, :], color='blue', linewidth=3, label=r'$7 \times \Delta W$')
+        plt.plot([4, 4], [5, 23], color='black', linewidth=1)
+        plt.fill_between(x, med_d[0, :], med_d[2, :], color='blue', alpha=0.5)
+        plt.legend(fontsize=fontsize)
+        plt.tight_layout()
+        plt.savefig('output/kmeans_optimal_k.png')
+        #plt.show()
+        plt.cla()
+        plt.clf()
+        plt.close()
+
+    # Plot the fraction of matching cells (total and average) vs. lambda
+    if lambdath:
+
+        # Read in 
+        lambdas = pickle.load(open(lambdas_file, 'rb'))
+
+        all_l1 = []
+        all_l2 = []
+        all_t1 = []
+        all_t2 = []
+
+        lth_max = 0.25
+
+        for i in range(0, 10):
+            x = lambdas[i][0,:]    
+            t1 = lambdas[i][1,:]    
+            t2 = lambdas[i][2,:]    
+            
+            i1 = t.find_max_index(t1)
+            i2 = t.find_max_index(t2)
+
+            # Filter the curves 
+            if x[i1] < lth_max:
+
+                print(x[i1], x[i2])
+                all_l1.append(x[i1])
+                all_l2.append(x[i2])
+                all_t1.append(t1)
+                all_t2.append(t2)
+
+        n_l1 = len(all_l1)
+        n_pts = len(x)
+        all_t1 = np.array(all_t1)
+        all_t2 = np.array(all_t2)
+        med_l1 = np.zeros((3, n_pts))
+        med_l2 = np.zeros((3, n_pts))
+
+        for i in range(0, n_pts):
+            med_l1[0, i] = np.min(all_t1[:, i])
+            med_l1[1, i] = np.median(all_t1[:, i])
+            med_l1[2, i] = np.max(all_t1[:, i])
+            med_l2[0, i] = np.min(all_t2[:, i])
+            med_l2[1, i] = np.median(all_t2[:, i])
+            med_l2[2, i] = np.max(all_t2[:, i])
+        
+        str_l1 = '%.3f %.3f' % (np.median(all_l1), np.std(all_l1))
+        str_l2 = '%.3f %.3f' % (np.median(all_l2), np.std(all_l2))
+        print(str_l1)
+        print(str_l2)
+
+        plt.figure(figsize=(6,6))
+        plt.grid(False)
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
+        plt.xlabel(r'$\lambda _{thr}$', fontsize=fontsize)
+        plt.ylabel(r'share of matching cells', fontsize=fontsize)
+        plt.plot(x, med_l1[1, :], color='black', linewidth=3, label='avg')
+        plt.fill_between(x, med_l1[0, :], med_l1[2, :], color='grey', alpha=0.5)
+        plt.plot(x, med_l2[1, :], color='blue', linewidth=3, label='tot')
+        plt.fill_between(x, med_l2[0, :], med_l2[2, :], color='blue', alpha=0.5)
+        plt.legend(fontsize=fontsize)
+        plt.tight_layout()
+        plt.savefig('output/kmeans_matching_lambdas.png')
+        #plt.show()
+        plt.cla()
+        plt.clf()
+
+
 if __name__ == "__main__":
-    """ MAIN PROGRAM - compute K-Means """
+    """ MAIN PROGRAM - compute k-means """
 
     # Program Options: what should we run / analyze?
     normalize = False
@@ -233,23 +457,24 @@ if __name__ == "__main__":
     plotEVs = False
     plotLambdas = False
 
-    read_kmeans = True
+    read_kmeans = False
     do_cmp = False
 
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/FullBox/'
-    file_ascii = '/home/edoardo/CLUES/TEST_DATA/VWeb/vweb_2048.000128.Vweb-ascii'
     #file_base = '/home/edoardo/CLUES/TEST_DATA/VWeb/'
     #file_base = '/home/edoardo/CLUES/DATA/VWeb/'
     #file_base = '/home/edoardo/CLUES/DATA/LGF/512/05_14/'
-    file_base = '/home/edoardo/CLUES/DATA/FullBox/17_11/'
+    #file_base = '/home/edoardo/CLUES/DATA/FullBox/17_11/'
+    file_base = '/media/edoardo/data1/DATA/VWeb/512/full/'
     #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
     #web_file = 'vweb_00_10.000064.Vweb-csv'; str_grid = '_grid64'; grid = 64
     #web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_2048.000128.csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_512_128_054.000128.Vweb.csv'; str_grid = '_grid128'; grid = 128
-    web_file = 'vweb_17_11.ascii.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+    #web_file = 'vweb_17_11.ascii.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+    web_file = 'vweb_17_11_256.ascii.000256.Vweb-csv'; str_grid = '_grid256'; grid = 256
     #web_file = 'vweb_2048.000128.Vweb-ascii'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_25_15.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_00_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128; normalize = True
@@ -267,11 +492,20 @@ if __name__ == "__main__":
     #wt.elbow_visualize()
     #plot_cmp()
     #plot_halo_webtype(file_webtype=halo_webtype_file, correct_type=False); exit()
+    
+    #file_scores = 'output/kmeans_scores_bootstrap.pkl'
+    #file_lambdas = 'output/kmeans_lambdas_bootstrap.pkl'
+    #multiple_web(file_name=file_base+web_file, scores_out=file_scores, lambdas_out=file_lambdas); exit()
 
+    file_scores = 'output/kmeans_scores_fullweb.pkl'
+    file_lambdas = 'output/kmeans_lambdas_fullweb.pkl'
+    #multiple_web(bootstrap=False, scores_out=file_scores, lambdas_out=file_lambdas); exit()
+    #plot_multiple_cmp(elbow=True, scores_file=file_scores, lambdath=True, lambdas_file=file_lambdas); exit()
+    #plot_multiple_cmp(elbow=True, scores_file=file_scores, lambdath=False, lambdas_file=file_lambdas); exit()
+    
     web_df = pd.read_csv(file_base + web_file, dtype=float)
-    web_df = gen_coord(data=web_df)
-    web_df.to_csv(file_base + web_file)
-
+    #web_df = gen_coord(data=web_df)
+    #web_df.to_csv(file_base + web_file)
 
     print(len(web_df))
     print(web_df.head())
@@ -285,7 +519,7 @@ if __name__ == "__main__":
 
     #threshold_list = [0.0, 0.1, 0.2]
     #threshold_list = [0.22, 0.26]
-    threshold_list = [0.22]
+    threshold_list = [0.18]
     #threshold_list = []
 
     # Check out that the vweb coordinates should be in Mpc units
