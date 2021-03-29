@@ -148,10 +148,6 @@ def plot_halo_webtype(file_webtype=None, correct_type=False):
 
         print(f'Env: {i}, {n_kmeans/n_tot} {n_vweb/n_tot}')
 
-    #for i in range(0, n_bins):
-
-
-
     return halos_wt
 
 
@@ -204,6 +200,7 @@ def plot_cmp():
 
 def loop_web():
     """ Read a list of vweb files """
+
     base_path = ''
     base_out = ''
     suffix = ''
@@ -451,13 +448,13 @@ if __name__ == "__main__":
     doYehuda = False
 
     plotNew = False
-    plotStd = True
+    plotStd = False
     plot3d = False
     plotKLV = False
     plotEVs = False
     plotLambdas = False
 
-    read_kmeans = False
+    read_kmeans = True
     do_cmp = False
 
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
@@ -473,11 +470,12 @@ if __name__ == "__main__":
     #web_file = 'vweb_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_2048.000128.csv'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_512_128_054.000128.Vweb.csv'; str_grid = '_grid128'; grid = 128
-    #web_file = 'vweb_17_11.ascii.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
-    web_file = 'vweb_17_11_256.ascii.000256.Vweb-csv'; str_grid = '_grid256'; grid = 256
+    web_file = 'vweb_17_11.ascii.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
+    #web_file = 'vweb_00_10.000032.Vweb-csv'; str_grid = '_grid32'; grid = 32
+    #web_file = 'vweb_17_11_256.ascii.000256.Vweb-csv'; str_grid = '_grid256'; grid = 256
     #web_file = 'vweb_2048.000128.Vweb-ascii'; str_grid = '_grid128'; grid = 128
     #web_file = 'vweb_25_15.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128
-    #web_file = 'vweb_00_00.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128; normalize = True
+    #web_file = 'vweb_00_10.000128.Vweb-csv'; str_grid = '_grid128'; grid = 128;
 
     web_kmeans_file = file_base + 'vweb_kmeans.csv'
     #kmeans_file = 'output/kmeans.pkl'
@@ -487,7 +485,7 @@ if __name__ == "__main__":
 
     #box = 500.0e+3; thick = 7.0e+3
     #box = 500.0; thick = 5.0
-    box = 100.0; thick = 5.0
+    box = 100.0; thick = 2.0
 
     #wt.elbow_visualize()
     #plot_cmp()
@@ -506,9 +504,8 @@ if __name__ == "__main__":
     web_df = pd.read_csv(file_base + web_file, dtype=float)
     #web_df = gen_coord(data=web_df)
     #web_df.to_csv(file_base + web_file)
-
-    print(len(web_df))
-    print(web_df.head())
+    #print(len(web_df))
+    #print(web_df.head())
 
     # Rescale the coordinates
     web_df['x'] = web_df['x'].values - box * 0.5
@@ -519,7 +516,8 @@ if __name__ == "__main__":
 
     #threshold_list = [0.0, 0.1, 0.2]
     #threshold_list = [0.22, 0.26]
-    threshold_list = [0.18]
+    #threshold_list = [0.26]
+    threshold_list = [0.18, 0.21]
     #threshold_list = []
 
     # Check out that the vweb coordinates should be in Mpc units
@@ -537,10 +535,14 @@ if __name__ == "__main__":
             web_df['env'] = web_df[['l1', 'l2', 'l3']].apply(lambda x: wt.find_env(*x, thresh), axis=1)
             vweb_env = np.array(web_df['env'].values, dtype=int)
 
-            f_out = 'output/kmeans_newvweb' + str_grid + '_l' + str(thresh)
+            f_out = 'output/kmeans_newvweb_smooth' + str_grid + '_l' + str(thresh)
             #f_out = 'output/kmeans_oldvweb' + str_grid + '_l' + str(thresh)
             title_str = r'$\lambda _{thr}=$' + str(thresh)
-            #web_df_slice = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=False, title=title_str)
+            web_df_slice = wt.plot_vweb_smooth(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=True, title=title_str, use_thresh=True)
+
+            #f_out = 'output/kmeans_newvweb' + str_grid + '_l' + str(thresh)
+            #web_df_slice = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=True, title=title_str, use_thresh=True)
+            #web_df_slice = wt.plot_vweb(fout=f_out, data=web_df_loc, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=False, title=title_str)
             #wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
 
     cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
@@ -571,22 +573,20 @@ if __name__ == "__main__":
     #print(len(vweb_env))
     #print(len(kmeans_env))
 
-    print('Assigning halos to nearest node / environment type')
-    halos_web = wt.assign_halos_to_environment_type(vweb=vweb_env, kmeans=kmeans_env, snap_end=1)
+    #print('Assigning halos to nearest node / environment type')
+    #halos_web = wt.assign_halos_to_environment_type(vweb=vweb_env, kmeans=kmeans_env, snap_end=1)
     #halos_web.to_csv(halo_webtype_file)
     print('Done')
 
-
-
-'''
     #wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
 
     f_out = 'output/kmeans_' + str_grid 
     envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=4, web_df=web_df, centers=centers)
     wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
     title_str = r'$k$-means'
-    wt.plot_vweb(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort, title=title_str)
+    wt.plot_vweb_smooth(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort, title=title_str)
 
+'''
     web_df['envk_std'] = kmeans.labels_
     web_df = wt.order_kmeans(data=web_df)
 

@@ -546,7 +546,7 @@ def order_kmeans(data=None, nk=4):
 
 
 @t.time_total
-def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False, do_plot=True, title=None):
+def plot_vweb_smooth(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False, do_plot=True, title=None):
     """ Plot the usual vweb using an input threshold and a given dataset """
     
     envs = [0, 1, 2, 3]
@@ -558,8 +558,194 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
     z_min = box * 0.5 - thick
     z_max = box * 0.5 + thick
 
+    #data_slice = data[data['z'] > z_min]
+    #data_slice = data[data['z'] < z_max]
+    
+    if grid == 128:
+        z0 = 50.391
+        cell = 0.391
+    elif grid == 32:
+        z0 = 51.56250
+        cell = 1.56250
+
+    data_slice = data[data['z'] == z0]
+
+    print(len(data_slice), grid * grid)
+
+    '''
+    '''
+    shift = box * 0.5
+    #data['x'] = data['x'].apply(lambda x: x - shift)
+    #data['y'] = data['y'].apply(lambda x: x - shift)
+
+    if box > 1e+4:
+        data_slice['x'] = data_slice['x'] / 1e+3
+        data_slice['y'] = data_slice['y'] / 1e+3
+        data_slice['z'] = data_slice['z'] / 1e+3
+        shift = shift / 1e+3
+
+    if use_thresh:
+        print(f'Plotting web with lambda threshold {thresh}')
+        voids = data_slice[data_slice['l1'] < thresh]
+        sheet = data_slice[(data_slice['l2'] < thresh) & (data_slice['l1'] > thresh)]
+        filam = data_slice[(data_slice['l2'] > thresh) & (data_slice['l3'] < thresh)]
+        knots = data_slice[data_slice['l3'] > thresh]
+        #data_slice['env'] = data_slice[['l1', 'l2', 'l3']].apply(lambda x: find_env(*x, thresh), axis=1)
+
+    else:
+        print(f'Plotting web with pre-computed environment class')
+        ind_voids = np.where(ordered_envs == 0)
+        ind_sheet = np.where(ordered_envs == 1)
+        ind_filam = np.where(ordered_envs == 2)
+        ind_knots = np.where(ordered_envs == 3)
+
+        voids = data_slice[data_slice['env'] == ind_voids[0][0]]
+        sheet = data_slice[data_slice['env'] == ind_sheet[0][0]]
+        filam = data_slice[data_slice['env'] == ind_filam[0][0]]
+        knots = data_slice[data_slice['env'] == ind_knots[0][0]]
+
+
+    print(len(voids) + len(sheet) + len(filam) + len(knots))
+
+    n_pts = float(len(data))
+    #str_env_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (len(voids)/n_pts, len(sheet)/n_pts, len(filam)/n_pts, len(knots)/n_pts)
+    #print(str_env_types)
+    str_dens_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (voids['dens'].median(), sheet['dens'].median(), filam['dens'].median(), knots['dens'].median())
+    print(str_dens_types)
+    
+    dens_grid = np.zeros((grid, grid))
+    
+    def x2i(x, y):
+        i = int(((x - cell) / box) * grid)
+        j = int(((y - cell) / box) * grid)
+        return (i, j)
+
+    indexes = dict()
+
+    for i in range(0, grid):
+        for j in range(0, grid):
+            for k in range(0, grid):
+                #index = i + j * grid + k * grid * grid
+                index = k + j * grid + i * grid * grid
+                indexes[str(index)] = [k, j, i]
+
+    def ind2i(ind):
+        inds = indexes[str(ind)]
+        return (inds[1], inds[0])
+
+    check_duplicates = []
+
+    for ind, row in voids.iterrows():
+        x, y = row[['x', 'y']]
+        #i, j = x2i(x, y)
+        #print(i, j, x, y)
+        i, j = ind2i(ind)
+        check_duplicates.append([i, j])
+        #print(i, j, ind)
+        dens_grid[i, j] = 0
+ 
+    for ind, row in sheet.iterrows():
+        x, y = row[['x', 'y']]
+        #i, j = x2i(x, y)
+        i, j = ind2i(ind)
+        check_duplicates.append([i, j])
+        dens_grid[i, j] = 2
+ 
+    for ind, row in filam.iterrows():
+        x, y = row[['x', 'y']]
+        #i, j = x2i(x, y)
+        i, j = ind2i(ind)
+        check_duplicates.append([i, j])
+        dens_grid[i, j] = 3
+ 
+    for ind, row in knots.iterrows():
+        x, y = row[['x', 'y']]
+        #i, j = x2i(x, y)
+        i, j = ind2i(ind)
+        check_duplicates.append([i, j])
+        dens_grid[i, j] = 4
+
+
+    non_duplicates = []
+
+    for elem in check_duplicates:
+        if elem in non_duplicates:
+            pass
+        else:
+            non_duplicates.append(elem)
+
+    print(len(check_duplicates))
+    print(len(non_duplicates))
+
+    #pkl.dump(dens_grid, open('output/dens_grid.pkl', 'wb'))
+    #dens_grid = pkl.load(open('output/dens_grid.pkl', 'rb'))
+    dens_grid[:, :] = dens_grid[::-1, :]
+
+    print(dens_grid)
+
+    if do_plot:
+
+        fontsize = 25
+    
+        # Plot the eigenvaule threshold based V-Web
+        plt.figure(figsize=(10, 10))
+        plt.rcParams["axes.edgecolor"] = "0.0"
+        plt.rcParams["axes.linewidth"]  = 1
+
+        plt.xlabel(r'SGX $\quad [h^{-1} Mpc]$', fontsize=fontsize)
+        plt.ylabel(r'SGY $\quad [h^{-1} Mpc]$', fontsize=fontsize)
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
+
+        #if use_thresh:
+        if title != None:
+            plt.title(title, fontsize=fontsize)
+        colormap = 'viridis'
+        size = 20
+        interp='gaussian'
+        #interp='spline36'
+        #interp='lanczos'
+        #interp='none'
+        plt.grid(False)
+        plt.imshow(dens_grid, cmap=colormap, interpolation=interp, extent=[-50, 50, -50, 50])
+        plt.grid(False)
+        #plt.pcolormesh(dens_grid) #, cmap=colormap, interpolation=interp)
+#        plt.scatter(voids['x'], voids['y'], c='lightgrey', s=size, marker='s')
+#        plt.scatter(sheet['x'], sheet['y'], c='grey', s=size, marker='s')
+#        plt.scatter(filam['x'], filam['y'], c='black', s=size, marker='s')
+#        plt.scatter(knots['x'], knots['y'], c='red', s=size, marker='s')
+        plt.rcParams["axes.edgecolor"] = "0.0"
+        plt.rcParams["axes.linewidth"]  = 1
+
+        # Save file
+        f_out = fout + '_' + str(thresh).replace('.','') + '.png'
+        plt.tight_layout()
+        print('Saving fig to ', f_out)
+        plt.savefig(f_out)
+        plt.cla()
+        plt.clf()
+
+    return data_slice
+
+
+@t.time_total
+def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False, do_plot=True, title=None):
+    """ Plot the usual vweb using an input threshold and a given dataset """
+    
+    envs = [0, 1, 2, 3]
+    envs = np.array(envs)
+    ordered_envs = np.array(ordered_envs)
+    #dummy = np.zeros(len(data))
+    #data['env'] = dummy
+
+    z_min = box * 0.5 - thick
+    z_max = box * 0.5 + thick
+    print(z_min, z_max)
+    
     data_slice = data[data['z'] > z_min]
-    data_slice = data[data['z'] < z_max]
+    data_slice = data_slice[data_slice['z'] < z_max]
+
+    print(len(data_slice))
 
     shift = box * 0.5
     #data['x'] = data['x'].apply(lambda x: x - shift)
@@ -597,7 +783,7 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
     #str_env_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (len(voids)/n_pts, len(sheet)/n_pts, len(filam)/n_pts, len(knots)/n_pts)
     #print(str_env_types)
     str_dens_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (voids['dens'].median(), sheet['dens'].median(), filam['dens'].median(), knots['dens'].median())
-    print(str_dens_types)
+    #print(str_dens_types)
 
     if do_plot:
 
@@ -608,9 +794,11 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
         elif grid == 64:
             size = 15
         elif grid == 128:
-            size = 5
+            size = 30
         elif grid == 256:
-            size = 3
+            size = 0.1
+
+        print(f'Point size={size}')
 
         # Plot the eigenvaule threshold based V-Web
         plt.figure(figsize=(10, 10))
@@ -628,7 +816,11 @@ def plot_vweb(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, u
         if title != None:
             plt.title(title, fontsize=fontsize)
 
-        size = 30
+        print('voids: ', len(voids))
+        print('sheet: ', len(sheet))
+        print('filam: ', len(filam))
+        print('knots: ', len(knots))
+
         plt.scatter(voids['x'], voids['y'], c='lightgrey', s=size, marker='s')
         plt.scatter(sheet['x'], sheet['y'], c='grey', s=size, marker='s')
         plt.scatter(filam['x'], filam['y'], c='black', s=size, marker='s')
