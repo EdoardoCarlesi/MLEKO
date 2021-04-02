@@ -216,7 +216,7 @@ def loop_web():
         #wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
 
 
-def multiple_web(bootstrap=False, n_steps=10, file_name=None, elbow=False, lambdath=True, scores_out=None, lambdas_out=None):
+def multiple_web(bootstrap=False, n_steps=10, file_name=None, elbow=False, lambdath=True, scores_out=None, lambdas_out=None, collect_stats=True, lambdas=None):
     """ Get a full vweb, decompose it into n_steps and average """
 
     if bootstrap:
@@ -238,6 +238,11 @@ def multiple_web(bootstrap=False, n_steps=10, file_name=None, elbow=False, lambd
     l_min = 0.0; l_max = 0.6; l_step=0.01; n_l_steps = int((l_max - l_min) / l_step)
     k_means_scores = []
     k_means_lambdas = []
+    n_lambdas = len(lambdas)
+
+    # Keep track of the statistcs for densities and volume filling fractions
+    kweb_stats = np.zeros((2, 4, n_steps)); 
+    vweb_stats = np.zeros((n_lambdas, 2, 4, n_steps)); 
 
     # Now loop on the full file and determine kmeans vs. vweb statistics
     for i_step in range(0, n_steps):
@@ -254,6 +259,46 @@ def multiple_web(bootstrap=False, n_steps=10, file_name=None, elbow=False, lambd
             file_name = file_root + str(i_step) + suffix
             print(f'Step: {i_step}, reading file: {file_name}')
             web_part = pd.read_csv(file_name)
+
+        # Gather data on the median volume filling fractions and densities
+        if collect_stats:
+                print('Collecting statistics ...')
+            
+                for il, lam in enumerate(lambdas):
+                    print(f'Using input lambda {lam}')
+                    web_part['env'] = web_part[cols].T.apply(lambda x: wt.find_env(*x, lam))
+                    n_tot = len(web_part)
+                    print(f'Splitting...')
+
+                    for ie in range(0, 4):
+                        n_loc = len(web_part[web_part['env'] == ie])
+                        mdens = np.median(web_part[web_part['env'] == ie]['dens'].values)
+                        vfrac = float(n_loc / n_tot)
+                        vweb_stats[il, 0, ie, i_step] = mdens
+                        vweb_stats[il, 1, ie, i_step] = vfrac
+                        print(i_step, il, ie, mdens, vfrac)
+            
+                print('Running k-means...')
+
+                # Init some variables
+                random_state = 101
+                n_clusters = 4
+                kmeans = KMeans(n_clusters=n_clusters, n_init=1, random_state=random_state)
+                kmeans.fit(web_part[cols])
+
+                # Sort the k means labels 0,1,2,3 in increasing matter density order
+                web_part['envk_std'] = kmeans.labels_
+                web_part = wt.order_kmeans(data=web_part)
+                n_tot = len(web_part)
+
+                print('Splitting into sub classes... ')
+                for ie in range(0, 4):
+                    n_loc = len(web_part[web_part['envk'] == ie])
+                    mdens = np.median(web_part[web_part['envk'] == ie]['dens'].values)
+                    vfrac = float(n_loc / n_tot)
+                    kweb_stats[0, ie, i_step] = mdens
+                    kweb_stats[1, ie, i_step] = vfrac
+                    print(i_step, ie, mdens, vfrac)
 
         # Check for the optimal k-value using elbow method
         if elbow:
@@ -298,17 +343,76 @@ def multiple_web(bootstrap=False, n_steps=10, file_name=None, elbow=False, lambd
             k_means_lambdas.append(k_lambdas)
 
     # Save files in pkl format
+    if collect_stats:
+        kweb_stats_file = 'output/kweb_stats.pkl'
+        vweb_stats_file = 'output/vweb_stats.pkl'
+        print(f'Saving statistics about filling fractions and densities to {kweb_stats_file} and {vweb_stats_file}')
+        pickle.dump(kweb_stats, open(kweb_stats_file, 'wb'))
+
+        if len(lambdas) > 0:
+            pickle.dump(vweb_stats, open(vweb_stats_file, 'wb'))
+        
+        return kweb_stats, vweb_stats
+
     if elbow:
         print(f'Saving Elbow to file {scores_out}')
         print(k_means_scores)
         pickle.dump(k_means_scores, open(scores_out, 'wb'))
+
+        return k_means_scores
  
     if lambdath:
         print(f'Saving Lambdas to file {lambdas_out}')
         print(k_means_lambdas)
         pickle.dump(k_means_lambdas, open(lambdas_out, 'wb'))
 
-    return k_means_scores
+        return k_means_lambdas
+
+
+def web_stats():
+    """ vweb - kweb statistics """
+        
+    kweb_stats_file = 'output/kweb_stats.pkl'
+    vweb_stats_file = 'output/vweb_stats.pkl'
+    kweb = pickle.load(open(kweb_stats_file, 'rb'))
+    vweb = pickle.load(open(vweb_stats_file, 'rb'))
+    
+    kstats = np.zeros((4, 4))
+    vstats = np.zeros((8, 4))
+    
+    for ie in range(0, 4):
+        kstats[0, ie] = np.median(kweb[0, ie, :])
+        kstats[1, ie] = np.std(kweb[0, ie, :])
+        kstats[2, ie] = np.median(kweb[1, ie, :])
+        kstats[3, ie] = np.std(kweb[1, ie, :])
+    
+    for ie in range(0, 4):
+        vstats[0, ie] = np.median(vweb[0, 0, ie, :])
+        vstats[1, ie] = np.std(vweb[0, 0, ie, :])
+        vstats[2, ie] = np.median(vweb[0, 1, ie, :])
+        vstats[3, ie] = np.std(vweb[0, 1, ie, :])
+        vstats[4, ie] = np.median(vweb[1, 0, ie, :])
+        vstats[5, ie] = np.std(vweb[1, 0, ie, :])
+        vstats[6, ie] = np.median(vweb[1, 1, ie, :])
+        vstats[7, ie] = np.std(vweb[1, 1, ie, :])
+
+    envs = ['void', 'sheet', 'filament', 'knot']
+
+    print('\hline')
+    for ie in range(0, 4):
+        str_1 = '%s & $%.3f\pm%.3f$ ' % (envs[ie], kstats[0, ie], kstats[1, ie])
+        str_2 = ' & $%.3f\pm%.3f$ ' % (vstats[0, ie], vstats[1, ie])
+        str_3 = ' & $%.3f\pm%.3f$ \\\ ' % (vstats[4, ie], vstats[5, ie])
+        print(str_1, str_2, str_3) 
+    print('\hline')
+    print('')   
+    print('\hline')
+    for ie in range(0, 4):
+        str_4 = '%s & $%.3f\pm%.3f$ ' % (envs[ie], kstats[2, ie], kstats[3, ie])
+        str_5 = ' & $%.3f\pm%.3f$ ' % (vstats[2, ie], vstats[3, ie])
+        str_6 = ' & $%.3f\pm%.3f$ \\\ ' % (vstats[6, ie], vstats[7, ie])
+        print(str_4, str_5, str_6)
+    print('\hline')
 
 
 def plot_multiple_cmp(elbow=False, scores_file=None, lambdath=True, lambdas_file=None):
@@ -448,7 +552,7 @@ if __name__ == "__main__":
     doYehuda = False
 
     plotNew = False
-    plotStd = False
+    plotStd = True
     plot3d = False
     plotKLV = False
     plotEVs = False
@@ -491,9 +595,12 @@ if __name__ == "__main__":
     #plot_cmp()
     #plot_halo_webtype(file_webtype=halo_webtype_file, correct_type=False); exit()
     
-    #file_scores = 'output/kmeans_scores_bootstrap.pkl'
-    #file_lambdas = 'output/kmeans_lambdas_bootstrap.pkl'
-    #multiple_web(file_name=file_base+web_file, scores_out=file_scores, lambdas_out=file_lambdas); exit()
+    web_stats()
+
+    file_scores = 'output/kmeans_scores_bootstrap.pkl'
+    file_lambdas = 'output/kmeans_lambdas_bootstrap.pkl'
+    #ks, vs = multiple_web(file_name=file_base+web_file, lambdas=[0.18, 0.21], lambdath=False, elbow=False); 
+    #print(vs)
 
     file_scores = 'output/kmeans_scores_fullweb.pkl'
     file_lambdas = 'output/kmeans_lambdas_fullweb.pkl'
@@ -519,6 +626,7 @@ if __name__ == "__main__":
     #threshold_list = [0.26]
     threshold_list = [0.18, 0.21]
     #threshold_list = []
+    cols = []
 
     # Check out that the vweb coordinates should be in Mpc units
     if normalize == True:
@@ -531,8 +639,16 @@ if __name__ == "__main__":
 
     if plotStd == True: 
         for thresh in threshold_list:
+            
+            colth = str(thresh)
+            cols.append(colth)
+            print('std vweb for : ', colth)
+            #web_df['env'] = web_df[['l1', 'l2', 'l3']].apply(lambda x: wt.find_env(*x, thresh), axis=1)
+            web_df[colth] = web_df[['l1', 'l2', 'l3']].apply(lambda x: wt.find_env(*x, thresh), axis=1)
 
-            web_df['env'] = web_df[['l1', 'l2', 'l3']].apply(lambda x: wt.find_env(*x, thresh), axis=1)
+            print(web_df.head())
+
+            '''
             vweb_env = np.array(web_df['env'].values, dtype=int)
 
             f_out = 'output/kmeans_newvweb_smooth' + str_grid + '_l' + str(thresh)
@@ -544,6 +660,7 @@ if __name__ == "__main__":
             #web_df_slice = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=True, title=title_str, use_thresh=True)
             #web_df_slice = wt.plot_vweb(fout=f_out, data=web_df_loc, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=False, title=title_str)
             #wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
+            '''
 
     cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
 
@@ -553,7 +670,6 @@ if __name__ == "__main__":
     if read_kmeans:
 
         print('Loading k-means from ', kmeans_file)
-        web_df = pd.read_csv(web_kmeans_file)
         kmeans = pickle.load(open(kmeans_file, 'rb'))
         centers = kmeans.cluster_centers_
         kmeans_env = kmeans.labels_
@@ -570,21 +686,27 @@ if __name__ == "__main__":
         web_df.to_csv(web_kmeans_file)
         print('Done.')
         
-    #print(len(vweb_env))
-    #print(len(kmeans_env))
-
     #print('Assigning halos to nearest node / environment type')
     #halos_web = wt.assign_halos_to_environment_type(vweb=vweb_env, kmeans=kmeans_env, snap_end=1)
     #halos_web.to_csv(halo_webtype_file)
-    print('Done')
-
+    #print('Done')
     #wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
 
-    f_out = 'output/kmeans_' + str_grid 
-    envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=4, web_df=web_df, centers=centers)
-    wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
-    title_str = r'$k$-means'
-    wt.plot_vweb_smooth(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort, title=title_str)
+    #f_out = 'output/kmeans_' + str_grid 
+    #envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=4, web_df=web_df, centers=centers)
+    #wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
+    #title_str = r'$k$-means'
+    #wt.plot_vweb_smooth(data=web_df, fout='output/vweb_kmeans_128.png', grid=128, use_thresh=False, ordered_envs=number_sort, title=title_str)
+    
+    
+    print(web_df.head())
+    web_df['envk_std'] = kmeans.labels_
+    web_df = wt.order_kmeans(data=web_df)
+    cols.append('envk')
+    print(cols)
+    print(web_df.head())
+
+    wt.plot_densities(data=web_df, cols=cols)
 
 '''
     web_df['envk_std'] = kmeans.labels_

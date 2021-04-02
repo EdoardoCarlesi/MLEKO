@@ -480,11 +480,59 @@ def std_vweb(data=None, thresh=None):
 
         str_df = ' $%.3f$ & $%.3f$ \\\ ' % (d_med, f_vol) 
         str_env = str_part + str_df
-        #print(str_env)
+        print(str_env)
 
     #print('\hline')
 
     return data
+
+
+def plot_densities(data=None, cols=None):
+    """ Compare the density distributions in the three schemes """
+    
+    envs = ['voids', 'sheets', 'filaments', 'knots']
+    colors = ['blue', 'green', 'black']
+    linestyles = ['-', '--', '-.']
+    legends = [r'$\lambda = 0.18$', r'$\lambda_t$ = 0.21', r'$k$-web']
+    fontsize=30
+    nbins=75
+    lwsize=2
+
+    data = data[data['dens'] < 50]
+    data['dens'] = np.log10(data['dens'].values)
+
+    for ie, env in enumerate(envs):
+        title = env
+        plt.figure(figsize=(10, 10))
+        plt.grid(False)
+        plt.title(title, fontsize=fontsize)
+        plt.xlabel(r'$\log _{10} \Delta _M$', fontsize=fontsize)
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
+
+        for ic, col in enumerate(cols):
+            delta = data[data[col] == float(ie)]['dens'].values 
+
+            if ie == 0:
+                plt.hist(delta, color=colors[ic], alpha=0.3, bins=nbins, density=True, label=legends[ic])
+            else:
+                plt.hist(delta, color=colors[ic], alpha=0.3, bins=nbins, density=True, label=legends[ic])
+
+            plt.hist(delta, color=colors[ic], histtype='step', lw=lwsize, density=True, bins=nbins) #, linestyle=linestyles[ic], label=legends[ic])
+            plt.grid(False)
+
+        fout = 'output/web_dens_' + env + '_cmp.png'
+        print('Plotting to:', fout)
+
+        if ie == 0:
+            plt.legend(fontsize=fontsize)
+
+        plt.grid(False)
+        plt.tight_layout()
+        plt.savefig(fout)
+        plt.close()
+        plt.clf()
+        plt.cla()
 
 
 def compare_vweb_kmeans(vweb=None, l=0.0):
