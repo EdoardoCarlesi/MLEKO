@@ -15,6 +15,8 @@ import numpy as np
 import tools as t
 import pickle as pkl
 import read_files as rf
+from tqdm import tqdm
+import sys
 
 from sklearn.metrics import silhouette_score, homogeneity_score, calinski_harabasz_score, silhouette_samples
 from yellowbrick.cluster import KElbowVisualizer
@@ -86,53 +88,50 @@ def plot_eigenvalues_per_environment_type(data=None, env_type=None, out_base=Non
     plt.cla()
 
 
-def assign_halos_to_environment_type(snap_ini=0, snap_end=5, vweb=None, kmeans=None):
+def assign_halos_to_environment_type(halo_file=None, webdf=None, base_path=None, suffix=None):
     """ Given a snapshot / series of snapshots read the halo catalog and make it into different environment types """
-
-    base_path = '/home/edoardo/CLUES/DATA/FullBox/17_11/snapshot_127.'
-    suffix = '.z0.000.AHF_halos'
     
     # We will save the halos into a list of the form [halo_mass, type_kmeans, type_vweb]
     halo_env = []
 
     # Vweb and kmeans are arrays with index = ix + n * iy + n * n * iz
     x_col = ['Xc(6)', 'Yc(7)', 'Zc(8)']
+    l_col = ['l1', 'l2', 'l3']
     m_col = 'Mvir(4)'
     fac = 1.0e+3
 
-    for snap_i in range(snap_ini, snap_end):
-        snap_str = '%04d' % snap_i
-        this_ahf = base_path + snap_str + suffix
+    print('Reading halo file: ', halo_file)
+    this_halos = pd.read_csv(halo_file)
+    this_halos = this_halos.drop(columns=this_halos.columns[11:])
+    print('Overwriting halo file: ', halo_file)
+    this_halos.to_csv(halo_file) 
+    #this_halos = this_halos.sample(5000)
+    print('Done. Assigning halo to web...')
 
-        if snap_i == 0:
-            this_halos = rf.read_ahf_halo(this_ahf)
-            columns = list(this_halos.columns)
-
-            # The columns are not sorted correctly so we need to add a dummy label at the beginning and remove the last one for consistency
-            columns.insert(0, 'Dummy')
-            columns.remove(columns[-1])
-
-        else:
-            this_halos = rf.read_ahf_halo(this_ahf, use_header=True, header=columns)
-        
-        for i, row in this_halos.iterrows():
-            this_m = row[m_col]
-            this_x = row[x_col].T / fac
-            index = find_nearest_node_index(x=this_x, grid=128, box=100.0)
-
-            vweb_type = vweb[index]
-            kmeans_type = kmeans[index]
-
-            this_halo_env = [this_m, kmeans_type, vweb_type]
+    # Copy the values here for a huge speedup!
+    rows = this_halos[x_col].values
+    masses = this_halos[m_col].values
+    ls = webdf[l_col].values
+    ks = webdf['envk'].values
     
-            halo_env.append(this_halo_env)
+    for this_x, this_m in tqdm(zip(rows, masses)):
+        this_x = this_x / fac
+        index = find_nearest_node_index(x=this_x, grid=128, box=100.0)
 
-            print(index, this_x.values, this_m/1.e+10, vweb_type, kmeans_type)
-            #print(this_halos.head())
+        lambdas = ls[index] 
+        kmeans_type = ks[index] 
+
+        this_halo_env = [this_m, kmeans_type, *lambdas]
+
+        halo_env.append(this_halo_env)
+
+        #print(i, sys.getsizeof(halo_env))
+        #print(index, this_x, this_m/1.e+10, lambdas, kmeans_type)
+        #print(this_halos.head())
 
     cols = np.array(halo_env)
-    data = pd.DataFrame(data=cols, columns=['M', 'kmeans', 'vweb'])
-    
+    #print(cols)
+    data = pd.DataFrame(data=cols, columns=['M', 'kmeans', *l_col])
     print(data.head())
 
     return data
@@ -174,7 +173,95 @@ def plot_new_format(data=None, f_out=None, labels=None):
     plt.tight_layout()
     plt.savefig(f_out)
     print('Done.')
- 
+
+
+def plot2d(data=None, f_out=None):
+    """
+    Plot a 3d distribution of points
+    - labels can be kmeans.labels_ , it is an integer describing the class each point belongs to
+    - data is the v-web eigenvalues dataframe
+    """
+
+    #colors = ['g', 'g', 'b', 'r']
+    #colors = ['lightgrey', 'grey', 'black', 'red']
+    #labels = ['void', 'sheet', 'filament', 'knot']
+    #colors = ['lightgrey', 'black', 'grey', 'red']
+    colors = ['black', 'grey', 'green', 'blue']
+    envnames = ['void', 'sheet', 'filament', 'knot']
+
+    labels = [r'$\lambda_1$', r'$\lambda_2$', r'$\lambda_3$']
+
+    print('Plotting in 2D particle distributions...')
+    fig = plt.figure(figsize=(10,10))
+    fontsize = 35
+    plt.grid(False)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+
+    # Lambda 1 vs Lambda 2
+    plt.xlabel(labels[0], fontsize=fontsize)
+    plt.ylabel(labels[1], fontsize=fontsize)
+
+    alphas = [1.0, 0.5, 0.33, 0.25]
+    alphas = alphas[::-1]
+
+    envs = [3, 2, 1, 0]
+
+    for env in envs: 
+        datax = data[data['envk'] == env]['l1'].values
+        datay = data[data['envk'] == env]['l2'].values
+        plt.scatter(datax, datay, c=colors[env], label = envnames[env], alpha=alphas[env])
+
+    this_f_out = f_out + '_l1l2.png'
+    plt.legend(fontsize=fontsize, frameon=True, framealpha=1.0)
+    print('Plotting to output file: ', this_f_out)
+    plt.tight_layout()
+    plt.savefig(this_f_out)
+    plt.cla();     plt.clf(); plt.close()
+
+    # Lambda 1 vs Lambda 3
+    fig = plt.figure(figsize=(10,10))
+    fontsize = 35
+    plt.grid(False)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    plt.xlabel(labels[0], fontsize=fontsize)
+    plt.ylabel(labels[2], fontsize=fontsize)
+
+    for env in envs: 
+        datax = data[data['envk'] == env]['l1'].values
+        datay = data[data['envk'] == env]['l3'].values
+        plt.scatter(datax, datay, c=colors[env], alpha=alphas[env])
+
+    this_f_out = f_out + '_l1l3.png'
+    print('Plotting to output file: ', this_f_out)
+    plt.tight_layout()
+    plt.savefig(this_f_out)
+    plt.cla();     plt.clf(); plt.close()
+
+    # Lambda 2 vs Lambda 3
+    fig = plt.figure(figsize=(10,10))
+    fontsize = 35
+    plt.grid(False)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    plt.xlabel(labels[1], fontsize=fontsize)
+    plt.ylabel(labels[2], fontsize=fontsize)
+
+    for env in envs: 
+        datax = data[data['envk'] == env]['l2'].values
+        datay = data[data['envk'] == env]['l3'].values
+        plt.scatter(datax, datay, c=colors[env], alpha=alphas[env])
+
+    this_f_out = f_out + '_l2l3.png'
+    print('Plotting to output file: ', this_f_out)
+    plt.tight_layout()
+    plt.savefig(this_f_out)
+    plt.cla();     plt.clf(); plt.close()
+
+    print('Done.')
+    exit()
+
 
 def plot3d(labels=None, data=None, f_out=None):
     """
@@ -487,7 +574,7 @@ def std_vweb(data=None, thresh=None):
     return data
 
 
-def plot_densities(data=None, cols=None):
+def plot_densities(data=None, cols=None, f_out=None):
     """ Compare the density distributions in the three schemes """
     
     envs = ['voids', 'sheets', 'filaments', 'knots']
@@ -521,7 +608,7 @@ def plot_densities(data=None, cols=None):
             plt.hist(delta, color=colors[ic], histtype='step', lw=lwsize, density=True, bins=nbins) #, linestyle=linestyles[ic], label=legends[ic])
             plt.grid(False)
 
-        fout = 'output/web_dens_' + env + '_cmp.png'
+        fout = f_out + env + '_cmp.png'
         print('Plotting to:', fout)
 
         if ie == 0:
@@ -541,35 +628,51 @@ def compare_vweb_kmeans(vweb=None, l=0.0):
     shared = []
     n_env_shared = np.zeros(4)
     tot_env = np.zeros(4)
+    mass_shared = np.zeros(4)
+    tot_mass = np.zeros(4)
 
     diffs = vweb['env'].values - vweb['envk'].values
     diffs_inds = np.where(diffs == 0)
+    mtot = np.sum(vweb['dens'].values)
+    mtot_shared = np.sum(vweb['dens'].values[diffs_inds[0]])
 
     n_all = len(vweb)
     #print(f'Global shared values: {l} {len(diffs[diffs_inds])/n_all}')
     
     for i, env in enumerate([0, 1, 2, 3]):
+
+        # Count the volume in this specific environment
         n_tot = len(vweb[vweb['envk'] == env])
         tmp = vweb[vweb['env'] == env]
         n_shared = len(tmp[tmp['envk'] == env])
-        
         n_env_shared[i] = n_shared
         tot_env[i] = n_tot
+        
+        # Compute the total mass in this specific environment
+        m_tot = np.sum(vweb[vweb['envk'] == env]['dens'].values)
+        mass_shared[i] = np.sum(tmp[tmp['envk'] == env]['dens'].values)
+        tot_mass[i] = m_tot
+
 
         #print(f'Env: {env}, Tot: {n_tot}, Shared: {n_shared}, Perc: {n_env_shared/tot_env}')
-
+    
     average = np.mean(n_env_shared/tot_env)
     total = len(diffs[diffs_inds])/n_all
-    print(f'Global shared values: {l},{total},{average},{n_env_shared/tot_env}')
 
+    average_mass = np.mean(mass_shared/tot_mass)
+    total_mass = mtot_shared / mtot
+
+    print(f'Global shared values: {l},{total},{average},{n_env_shared/tot_env}, mass-weighted: {total_mass} {average_mass}')
+
+    '''
     for env in [0, 1, 2, 3]:
         n_tot = len(vweb[vweb['env'] == env])
         tmp = vweb[vweb['envk'] == env]
         n_shared = len(tmp[tmp['env'] == env])
-        
         #print(f'(inverse check) Env: {env}, Tot: {n_tot}, Shared: {n_shared} Perc: {n_shared/n_tot}')
+    '''
 
-    return average, total
+    return average, total, average_mass, total_mass
 
 
 def order_kmeans(data=None, nk=4):    
@@ -594,14 +697,11 @@ def order_kmeans(data=None, nk=4):
 
 
 @t.time_total
-def plot_vweb_smooth(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False, do_plot=True, title=None):
+def plot_vweb_smooth(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick=2.0, use_thresh=True, ordered_envs=None, plot_dens=False, do_plot=True, title=None, envs=[0, 1, 2, 3]):
     """ Plot the usual vweb using an input threshold and a given dataset """
     
-    envs = [0, 1, 2, 3]
     envs = np.array(envs)
     ordered_envs = np.array(ordered_envs)
-    #dummy = np.zeros(len(data))
-    #data['env'] = dummy
 
     z_min = box * 0.5 - thick
     z_max = box * 0.5 + thick
@@ -619,12 +719,7 @@ def plot_vweb_smooth(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick
     data_slice = data[data['z'] == z0]
 
     print(len(data_slice), grid * grid)
-
-    '''
-    '''
     shift = box * 0.5
-    #data['x'] = data['x'].apply(lambda x: x - shift)
-    #data['y'] = data['y'].apply(lambda x: x - shift)
 
     if box > 1e+4:
         data_slice['x'] = data_slice['x'] / 1e+3
@@ -638,28 +733,34 @@ def plot_vweb_smooth(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick
         sheet = data_slice[(data_slice['l2'] < thresh) & (data_slice['l1'] > thresh)]
         filam = data_slice[(data_slice['l2'] > thresh) & (data_slice['l3'] < thresh)]
         knots = data_slice[data_slice['l3'] > thresh]
-        #data_slice['env'] = data_slice[['l1', 'l2', 'l3']].apply(lambda x: find_env(*x, thresh), axis=1)
 
     else:
         print(f'Plotting web with pre-computed environment class')
         ind_voids = np.where(ordered_envs == 0)
         ind_sheet = np.where(ordered_envs == 1)
         ind_filam = np.where(ordered_envs == 2)
-        ind_knots = np.where(ordered_envs == 3)
+
+        if len(envs) > 3:
+            ind_knots = np.where(ordered_envs == 3)
+
+        if len(envs) > 4:
+            ind_extra = np.where(ordered_envs == 4)
 
         voids = data_slice[data_slice['env'] == ind_voids[0][0]]
         sheet = data_slice[data_slice['env'] == ind_sheet[0][0]]
         filam = data_slice[data_slice['env'] == ind_filam[0][0]]
-        knots = data_slice[data_slice['env'] == ind_knots[0][0]]
+        if len(envs) > 3:
+            knots = data_slice[data_slice['env'] == ind_knots[0][0]]
+        if len(envs) > 4:
+            extra = data_slice[data_slice['env'] == ind_extra[0][0]]
 
-
-    print(len(voids) + len(sheet) + len(filam) + len(knots))
+    #print(len(voids) + len(sheet) + len(filam) + len(knots))
 
     n_pts = float(len(data))
     #str_env_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (len(voids)/n_pts, len(sheet)/n_pts, len(filam)/n_pts, len(knots)/n_pts)
     #print(str_env_types)
-    str_dens_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (voids['dens'].median(), sheet['dens'].median(), filam['dens'].median(), knots['dens'].median())
-    print(str_dens_types)
+    #str_dens_types = '%.2f & %.2f & %.2f & %.2f \\\ ' % (voids['dens'].median(), sheet['dens'].median(), filam['dens'].median(), knots['dens'].median())
+    #print(str_dens_types)
     
     dens_grid = np.zeros((grid, grid))
     
@@ -704,15 +805,29 @@ def plot_vweb_smooth(data=None, fout=None, thresh=0.0, grid=64, box=100.0, thick
         #i, j = x2i(x, y)
         i, j = ind2i(ind)
         check_duplicates.append([i, j])
-        dens_grid[i, j] = 3
- 
-    for ind, row in knots.iterrows():
-        x, y = row[['x', 'y']]
-        #i, j = x2i(x, y)
-        i, j = ind2i(ind)
-        check_duplicates.append([i, j])
-        dens_grid[i, j] = 4
 
+        if len(envs) == 3:
+            dens_grid[i, j] = 4
+        else:
+            dens_grid[i, j] = 3
+ 
+    if len(envs) > 3:
+
+        for ind, row in knots.iterrows():
+            x, y = row[['x', 'y']]
+            #i, j = x2i(x, y)
+            i, j = ind2i(ind)
+            check_duplicates.append([i, j])
+            dens_grid[i, j] = 4
+ 
+    if len(envs) > 4:
+
+        for ind, row in extra.iterrows():
+            x, y = row[['x', 'y']]
+            #i, j = x2i(x, y)
+            i, j = ind2i(ind)
+            check_duplicates.append([i, j])
+            dens_grid[i, j] = 6
 
     non_duplicates = []
 

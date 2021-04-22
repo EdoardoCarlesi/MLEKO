@@ -18,6 +18,23 @@ import glob, os
 #import cv2
 
 
+def mass_function(masses, log=True):
+    """ Given a vector of masses, it returns a tuple of mass vs cumulative number of objects """
+
+    n_m = len(masses)
+    y_n = [0 for im in range(0, n_m)]
+    x_m = sorted(masses)
+
+    for im in range(0, n_m):
+        y_n[im] = n_m - im
+
+    if log:
+        y_n = np.log10(y_n)
+        x_m = np.log10(x_m)
+
+    return x_m, y_n
+
+
 def find_max_index(x):
     """ Return the position in the array of a max value """
 
