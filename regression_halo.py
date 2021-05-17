@@ -33,7 +33,7 @@ sns.set_style('whitegrid')
 do_mc = True
 #data = rf.read_lg_fullbox_vweb(grids = [32, 64, 128])
 
-data = rf.read_lg_fullbox(TA=True); name_add = '_sb'
+data = rf.read_lg_fullbox(TA=False); name_add = '_sb'
 #data = rf.read_lg_rs_fullbox(files=[0, 20]); name_add = '_rs'
 #data = rf.read_lg_lgf(TA=True); name_add = '_lgf'
 
@@ -143,22 +143,21 @@ equal_label = ''
 #plt.show()
 #sns.lmplot(x=dens, y=l_tot, data=data)
 
-regressor_type = 'linear'
+#regressor_type = 'linear'
 #regressor_type = 'decision_tree'
 #regressor_type = 'random_forest'
-#regressor_type = 'gradient_boost'
+regressor_type = 'gradient_boost'
 
 # Regression type, feature selection and target variable
 #train_cols = ['Vrad', 'R']; pred_col = 'Mlog'; train_type = 'mass_total'
-#train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan', 'Energy']; pred_col = 'Mlog'; train_type = 'mass_total'
 
+train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'Mlog'; train_type = 'mass_total'
 #train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'M_MW_log'; train_type = 'mass_mw'
 #train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'M_M31_log'; train_type = 'mass_m31'
-
 #train_cols = ['Vrad', 'R', 'Vtan']; pred_col = 'Mratio'; train_type = 'mass_ratio'
 
-train_cols = ['Vrad', 'R', 'Mlog']; pred_col = 'Vtan'; train_type = 'vel_tan'
+#train_cols = ['Vrad', 'R', 'Mlog']; pred_col = 'Vtan'; train_type = 'vel_tan'
 #train_cols = ['Vrad', 'R']; pred_col = 'Vtan'; train_type = 'vel_tan'
 
 base_slope = np.polyfit(data[train_cols[0]], data[pred_col], 1)
@@ -296,6 +295,7 @@ reg_name = reg_name + feat_title
 title = 'Correlation' + feat_title + equal_label + ' slope= ' + '%5.3f' % slope[0]
 
 # Plot the density levels
+plt.grid(False)
 plt.figure(figsize=(5, 5))
 sns.kdeplot(data[cols[0]], data[cols[1]])
 sns.scatterplot(data[cols[0]], data[cols[1]]) #, n_levels = 4)
@@ -360,15 +360,20 @@ if do_mc == True:
                     rad=[450, 550],
                     mtot=mtot) 
     else:
-        vrad = np.log10([1.00, 1.20])
-        vtan = np.log10([0.01, 2.00])
+
+        #vrad = np.log10([1.00, 1.20])
+        #vtan = np.log10([0.01, 2.00])
+        vrad = [105, 115]
+        vtan = [22, 92]
+        rad = [490, 550]
         df_mc = mc.gen_mc(
                     distribution='gauss', 
                     n_pts=n_pts, 
                     cols=cols,
                     vrad=vrad, 
-                    rad=[450, 550],
+                    rad=rad, 
                     vtan=vtan) 
+
     name_add = pred_col 
     mc.plot_mc_simple(mc_df=df_mc,
                     extra_info=name_add+equal_label, 

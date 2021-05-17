@@ -252,6 +252,63 @@ def filter_data(data=None, vrad_max=-1.0, vrad_min=-200.0, r_max=1500.0, r_min=3
     return data
 
 
+def clean_xy(x=None, y=None):
+    
+    new_x = []
+    new_y = []
+
+    for i, e in enumerate(y):
+
+        if not np.isnan(e) and not np.isinf(e) and e != 0.0:
+            new_x.append(x[i])
+            new_y.append(e)
+
+    return new_x, new_y
+
+
+def bin_xy(x=None, y=None, log=True, n_bins=100, x_bins=None, do_bins=True):
+
+    if log:
+        x = np.log10(x)
+    
+    y_bins = np.zeros(n_bins-1)
+
+    if do_bins:
+        x_bins = np.zeros(n_bins-1)
+        step = (np.max(x) - np.min(x)) / n_bins
+        x_min = np.min(x)
+
+        for i in range(0, n_bins-1):
+            x_bins[i] = (i + 1.0) * step + x_min
+            #print(i, x_bins[i])
+
+    #print(x_bins)
+
+    j_ind = 0
+    n_j = 1
+    this_y = 0
+    this_x = x[0]
+    ind_max = len(x)
+
+    #print(x[0], x_bins[0])
+
+    for i in range(0, n_bins-1):
+        
+        while (this_x < x_bins[i]) and (j_ind < ind_max):
+            this_x = x[j_ind]
+            this_y = this_y + y[j_ind]
+            j_ind = j_ind + 1
+            n_j = n_j + 1
+        
+        #print(this_y, i, n_j)
+        y_bins[i] = this_y / n_j
+        n_j = 1
+        this_y = 0
+
+    x_bins = 10 ** x_bins
+
+    return x_bins, y_bins
+
 
 def equal_number_per_bin(data=None, n_bins=10, bin_col='Mlog'):
     

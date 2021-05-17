@@ -107,51 +107,81 @@ def halos_web(run_kmeans=True, plot_only=True):
                 vol = (100.0) ** 3
                 m_l_x = np.array(m_l_x, dtype=float); m_l_y = np.array(m_l_y, dtype=float)
                 m_k_x = np.array(m_k_x, dtype=float); m_k_y = np.array(m_k_y, dtype=float)
-                m_l_y = m_l_y * 1.0e-6
-                m_k_y = m_k_y * 1.0e-6
+                m_l_y = m_l_y / vol
+                m_k_y = m_k_y / vol
 
-                plt.grid(False)
-                plt.title(env_str)
-                plt.xscale('log')
-                plt.yscale('log')
-                plt.xlabel(r'$M \quad [M_{\odot h^{-1}}]$')
-                plt.ylabel(r'$n \quad [{Mpc^{-3} h^3]}$')
+                size = 10
+                (fig, axs) = plt.subplots(ncols=1, nrows=2, figsize=(size, size), sharex=True, gridspec_kw={'height_ratios': [3, 1]})
+
+                fontsize = 20
+                axs[0].grid(False)
+                axs[1].grid(False)
+                axs[0].set_title(env_str)
+                axs[0].set_xscale('log')
+                axs[0].set_yscale('log')
+                axs[1].set_xscale('log')
+                axs[0].tick_params(axis='y', labelsize=fontsize)
+                axs[1].tick_params(axis='x', labelsize=fontsize)
+                axs[1].tick_params(axis='y', labelsize=fontsize)
+                axs[1].set_xlabel(r'$M \quad [M_{\odot h^{-1}}]$', fontsize=fontsize)
+                axs[1].set_ylabel('ratio')
+                axs[0].set_ylabel(r'$n \quad [{Mpc^{-3} h^3]}$', fontsize=fontsize)
                 
                 m_l_x_b = np.copy(m_l_x); m_l_y_a = np.copy(m_l_y);   m_l_y_b = m_l_y.copy();                 
                 m_k_x_b = m_k_x.copy(); m_k_y_a = m_k_y.copy();   m_k_y_b = m_k_y.copy();                 
                 n_pts = 10
                 n_l = len(m_l_x) - n_pts;                n_k = len(m_k_x) - n_pts
 
-                #for i, mlx in enumerate(m_l_x[n_l-n_pts:]):
-                #    m_l_x_b[i+n_l-n_pts] = mlx * (1.0 + (i+1)/(3.0*n_pts))
-                    #print(i+n_l-n_pts, mlx, m_l_x_b[i + n_l-n_pts])
+                for i, mly in enumerate(m_l_y):
+                    m_l_y_a[i] = mly - np.sqrt(mly*vol)/vol
+                    m_l_y_b[i] = mly + np.sqrt(mly*vol)/vol
+
+                for i, mky in enumerate(m_k_y):
+                    m_k_y_a[i] = mky - np.sqrt(mky*vol)/vol
+                    m_k_y_b[i] = mky + np.sqrt(mky*vol)/vol
                 
-                '''
-                m_l_x_b[:-2] = m_l_x_b[:-2] * 0.8
-                m_l_x_b[:-1] = m_l_x_b[:-1] * 1.2
+                n_l = len(m_l_y)
+                n_k = len(m_k_y)
+                ratio_one = np.ones(n_l)
+                n_bins = 80
+                bin_l_x, bin_l_y = t.bin_xy(x=m_l_x, y=m_l_y, n_bins=n_bins)
+                bin_k_x, bin_k_y = t.bin_xy(x=m_k_x, y=m_k_y, x_bins=bin_l_x, n_bins=n_bins)
+                bin_l_x, bin_l_y_a = t.bin_xy(x=m_l_x, y=m_l_y_a, n_bins=n_bins)
+                bin_k_x, bin_k_y_a = t.bin_xy(x=m_k_x, y=m_k_y_a, x_bins=bin_l_x, n_bins=n_bins)
+                bin_l_x, bin_l_y_b = t.bin_xy(x=m_l_x, y=m_l_y_b, n_bins=n_bins)
+                bin_k_x, bin_k_y_b = t.bin_xy(x=m_k_x, y=m_k_y_b, x_bins=bin_l_x, n_bins=n_bins)
+            
+                ratio_m = bin_k_y / bin_l_y
+                ratio_m_a = bin_k_y_a / bin_l_y_a
+                ratio_m_b = bin_k_y_b / bin_l_y_b
 
-                for i, mly in enumerate(m_l_y[n_l-n_pts:]):
-                    m_l_y_a[i+n_l-n_pts] = mly * (1.0 - (i+1)/(2.0*n_pts))
-                    m_l_y_b[i+n_l-n_pts] = mly * (1.0 + (i+1)/(2.0*n_pts))
+                print('Pre: ', ratio_m)
+                x_ratio, m_ratio = t.clean_xy(x=bin_l_x, y=ratio_m)
+                #x_ratio_a, m_ratio_a = t.clean_xy(x=bin_l_x, y=ratio_m_a)
+                #x_ratio_a, m_ratio_b = t.clean_xy(x=bin_l_x, y=ratio_m_b)
+                print('Post: ', m_ratio)
 
-                for i, mkx in enumerate(m_k_x[n_k-n_pts:]):
-                    m_k_x_b[i+n_k-n_pts] = mkx * (1.0 + (i+1)/(1.0*n_pts))
-                '''
-                
-                y_max = np.max(m_l_y)
-                y_min = np.min(m_l_y)
+                #y_max = np.max(m_l_y)
+                #y_min = np.min(m_l_y)
+                #plt.ylim([y_min, y_max])
+                axs[0].plot(m_l_x, m_l_y, color='black', label='v-web')
+                axs[0].fill_between(m_l_x, m_l_y_a, m_l_y_b, color='grey', alpha=0.5)
+                axs[0].plot(m_k_x, m_k_y, color='blue', label='k-web')
+                #axs[0].plot(bin_l_x, bin_l_y, color='red', label='bins')
+                #axs[0].plot(bin_l_x, bin_k_y, color='green', label='bins')
+                axs[0].fill_between(m_k_x, m_k_y_a, m_k_y_b, color='blue', alpha=0.5)
 
-                plt.ylim([y_min, y_max])
-                plt.plot(m_l_x, m_l_y, color='black')
-                plt.fill_between(m_l_x_b, m_l_y_a * 0.85, m_l_y_b * 1.15, color='grey', alpha=0.5)
-                #plt.fill_between(m_l_x_b[n_l:] * 1.15, m_l_y_a[n_l:] * 0.15, m_l_y_b[n_l:] * 1.2, color='grey', alpha=0.5)
-                #plt.fill_between(m_l_x_b[n_l:] * 0.85, m_l_y_a[n_l:] * 0.75, m_l_y_b[n_l:] * 0.95, color='grey', alpha=0.5)
-
-                plt.plot(m_k_x, m_k_y, color='blue')
-                plt.fill_between(m_k_x, m_k_y_a * 0.85, m_k_y_b * 1.15, color='blue', alpha=0.5)
+                axs[1].plot(m_l_x, ratio_one, color='black')
+                axs[1].plot(x_ratio, m_ratio, color='blue')
+                #axs[1].fill_between(x_ratio_a, m_ratio_a, m_ratio_b, color='blue', alpha=0.5)
 
             plt.tight_layout()
-            plt.show()
+
+            if env_str == 'void':
+                axs[0].legend(fontsize=fontsize)
+            #axs[0].show()
+            f_out = 'output/hmf_' + env_str + '.png'
+            plt.savefig(f_out)
             plt.cla()
             plt.clf()
             
