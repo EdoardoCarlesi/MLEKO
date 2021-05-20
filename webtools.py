@@ -392,7 +392,7 @@ def generate_random(data=None, grid=None, prior='flat', verbose=False, mode='sim
 
 
 @t.time_total
-def evaluate_metrics(data=None, n_clusters_max=10, n_init=10, rescale_factor=10, visualize=False, elbow=True):
+def evaluate_metrics(data=None, min_k=1, n_clusters_max=10, n_init=10, rescale_factor=10, visualize=False, elbow=True):
     """ Evaluate different metrics to estimate the best k for the cluster number """
 
     print('evaluate_metrics()')
@@ -406,7 +406,7 @@ def evaluate_metrics(data=None, n_clusters_max=10, n_init=10, rescale_factor=10,
         n_data = int(len(data) / rescale_factor)
         data = data.sample(n_data, random_state = 1389)
 
-        for n_clusters in range(2, n_clusters_max+1):
+        for n_clusters in range(min_k, n_clusters_max+1):
 
             ks.append(n_clusters)
             kmeans = KMeans(n_clusters = n_clusters, n_init = n_init)
@@ -458,7 +458,7 @@ def evaluate_metrics(data=None, n_clusters_max=10, n_init=10, rescale_factor=10,
         print('Elbow Method score...')
         model = KMeans()
         X = data.values
-        visualizer = KElbowVisualizer(model, k=(2, n_clusters_max+1), timings=False)
+        visualizer = KElbowVisualizer(model, k=(min_k, n_clusters_max+1), timings=False)
         visualizer.fit(X)        
         print(visualizer.k_scores_)
 
@@ -495,17 +495,22 @@ def elbow_diff(scores):
 def elbow_visualize():
     """ Plot the curve to find the optimal k value """
 
-    f_elbow = 'output/elbow.csv'
+    f_elbow2 = 'output/elbow_all_k1.csv'
+    #f_elbow = 'output/elbow_void_score.csv'
+    f_elbow = 'output/elbow_voids_k1.csv'
     
+    data2 = pd.read_csv(f_elbow2)
     data = pd.read_csv(f_elbow)
     fac = 1.e+4
-    ymin = data['scoreE'].min()
-    ymax = data['scoreE'].max()
+    ymin = data['scoreE'].min()/data['scoreE'].max()
+    ymax = 1.0
     xs = [4, 4, 4]
     ys = [1, 100, ymax * 2]
 
     scores = data['scoreE'].values
+    scores2 = data2['scoreE'].values
     diff = elbow_diff(scores)
+    diff2 = elbow_diff(scores2)
     #print(diff * fac)
     #diff = np.array([0., 15714.28571429, 23333.33333333, 12500., 12000., 11000., 8571.42857143, 7333.33333333, 0.])
     #print(diff)
@@ -513,18 +518,23 @@ def elbow_visualize():
     size=20
     plt.figure(figsize=(9,7))
     plt.grid(False)
-    plt.ylim([0.8 * ymin / fac, 1.1 * ymax/fac])
+    #plt.ylim([0.8 * ymin / fac, 1.1 * ymax/fac])
     plt.xlabel('k', fontsize=size)
     plt.ylabel(r'distortion score $\quad$ [$10^4$]', fontsize=size)
 
-    plt.plot(data['k'].values, data['scoreE'].values/fac, color='blue', linewidth=5, label=r'$W(k)$')
-    plt.plot(data['k'].values, 10. * diff/fac, color='black', linewidth=3, label=r'$10 \times \Delta W $')
-    plt.plot(np.array(xs), np.array(ys)/fac, color='black', linestyle='--')
+    plt.plot(data2['k'].values, data2['scoreE'].values/data2['scoreE'].max(), color='red', linewidth=5, label=r'$W(k)$ all')
+    #plt.plot(data2['k'].values, diff2/np.max(diff2), color='orange', linewidth=3, label=r'$10 \times \Delta W $ all')
+    plt.plot(data2['k'].values, data2['delta'], color='orange', linewidth=3, label=r'$10 \times \Delta W $ all')
+    plt.plot(data['k'].values, data['scoreE'].values/data['scoreE'].max(), color='blue', linewidth=5, label=r'$W(k)$ void')
+    plt.plot(data['k'].values, diff/np.max(diff), color='black', linewidth=3, label=r'$10 \times \Delta W $ void')
+    #plt.plot(np.array(xs), np.array(ys)/fac, color='black', linestyle='--')
     plt.xticks(fontsize=size)
     plt.yticks(fontsize=size)
     plt.legend(fontsize=size)
     plt.tight_layout()
-    plt.savefig('output/elbow_score.png')
+    #plt.savefig('output/elbow_score.png')
+    #plt.savefig('output/elbow_void_score.png')
+    plt.savefig('output/elbow_void_score_k1.png')
     plt.cla()
     plt.clf()
     plt.close()
@@ -580,7 +590,7 @@ def plot_densities(data=None, cols=None, f_out=None):
     envs = ['voids', 'sheets', 'filaments', 'knots']
     colors = ['blue', 'green', 'black']
     linestyles = ['-', '--', '-.']
-    legends = [r'$\lambda = 0.18$', r'$\lambda_t$ = 0.21', r'$k$-web']
+    legends = [r'$\lambda = 0.22$', r'$\lambda_t$ = 0.26', r'$k$-web']
     fontsize=30
     nbins=75
     lwsize=2
@@ -605,7 +615,7 @@ def plot_densities(data=None, cols=None, f_out=None):
             else:
                 plt.hist(delta, color=colors[ic], alpha=0.3, bins=nbins, density=True, label=legends[ic])
 
-            plt.hist(delta, color=colors[ic], histtype='step', lw=lwsize, density=True, bins=nbins) #, linestyle=linestyles[ic], label=legends[ic])
+            plt.hist(delta, color=colors[ic], histtype='step', lw=lwsize, density=True, bins=nbins) 
             plt.grid(False)
 
         fout = f_out + env + '_cmp.png'
@@ -1270,8 +1280,9 @@ def plot_lambda_distribution(data=None, grid=128, base_out=None, env_col='env', 
 if __name__ == "__main__":
     """ Main program, used for debugging and testing """
 
-    assign_halos_to_environment_type()
+    #assign_halos_to_environment_type()
 
+    elbow_visualize()
     pass
 
 

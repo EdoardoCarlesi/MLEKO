@@ -822,16 +822,14 @@ if __name__ == "__main__":
     doYehuda = False
 
     plotNew = False
-    plotStd = True
+    plotStd = False
     plot3d = False
     plotKLV = False
     plotEVs = False
     plotLambdas = False
 
-    read_kmeans = True
+    read_kmeans = False
     do_cmp = False
-
-    halos_web(); exit()
 
     #file_base = '/home/edoardo/CLUES/DATA/Vweb/512/CSV/'
     file_base = '/home/edoardo/CLUES/DATA/VWeb/FullBox/'
@@ -922,6 +920,7 @@ if __name__ == "__main__":
         web_df['l2'] = web_df['l2'] / norm
         web_df['l3'] = web_df['l3'] / norm
 
+
     if plotStd == True: 
         for thresh in threshold_list:
             
@@ -941,9 +940,13 @@ if __name__ == "__main__":
             '''
             #web_df_slice = wt.plot_vweb(fout=f_out, data=web_df, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=True, title=title_str, use_thresh=True)
             #web_df_slice = wt.plot_vweb(fout=f_out, data=web_df_loc, thresh=thresh, grid=grid, box=box, thick=thick, do_plot=False, title=title_str)
-            '''
             f_out = 'output/kmeans_' + simu + '_' + str_grid + '_l' + str(thresh)
             wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
+            '''
+    else:
+        
+        print('Std env')
+        web_df['env'] = web_df[['l1', 'l2', 'l3']].apply(lambda x: wt.find_env(*x, 0.22), axis=1)
 
     cols_select = ['l1', 'l2', 'l3']; vers = ''; str_kmeans = r'$k$-means $\lambda$s'
 
@@ -957,47 +960,64 @@ if __name__ == "__main__":
         kmeans_file = 'output/kmeans_rand_k' + str(n_clusters) + '.pkl'
         all_avg_file = 'output/kmeans_all_rand_avg.pkl'; all_tot_file = 'output/kmeans_all_rand_tot.pkl'
 
+    print('Selecting voids...')
+    web_k = web_df[web_df['env'] == 0]
+    #web_k = web_df #[web_df['env'] == 0]
+
     if read_kmeans:
         print('Loading k-means from ', kmeans_file)
         kmeans = pickle.load(open(kmeans_file, 'rb'))
         centers = kmeans.cluster_centers_
-        web_df['env'] = kmeans.labels_
+        web_k['env'] = kmeans.labels_
         print('Done.')
 
     else:
         print('Running kmeans...')
         kmeans = KMeans(n_clusters=n_clusters, n_init=n_init)
-        kmeans.fit(web_df[cols_select])
+        kmeans.fit(web_k[cols_select])
         centers = kmeans.cluster_centers_
         pickle.dump(kmeans, open(kmeans_file, 'wb'))
-        web_df['env'] = kmeans.labels_
-        web_df.to_csv(web_kmeans_file)
+        web_k['env'] = kmeans.labels_
+        web_k.to_csv(web_kmeans_file)
         print('Saving kmeans to ', kmeans_file)
-    
     #print('Assigning halos to nearest node / environment type')
     #halos_web = wt.assign_halos_to_environment_type(vweb=vweb_env, kmeans=kmeans_env, snap_end=1)
     #halos_web.to_csv(halo_webtype_file)
     #print('Done')
-    #wt.evaluate_metrics(data=web_df[['l1', 'l2', 'l3']], elbow=True)
+    #scores = wt.evaluate_metrics(data=web_k[['l1', 'l2', 'l3']], elbow=True)
+    #data = pd.DataFrame()
+    #data['scoreE'] = scores
+    #data.to_csv('output/elbow_all_k1.csv')
 
     envs = [i for i in range(0, n_clusters)]
     f_out = 'output/kmeans_' + simu + '_' + str_grid + '_k' + str(n_clusters) + '.png'
-    envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=n_clusters, web_df=web_df, centers=centers)
+    envirs_sort, colors_sort, number_sort = order_by_delta(n_clusters=n_clusters, web_df=web_k, centers=centers)
+    wt.plot_lambda_distribution(data=web_k, base_out=f_out, x_axis=True)
 
-    wt.plot_lambda_distribution(data=web_df, base_out=f_out, x_axis=True)
     title_str = r'$k$-means, k='+str(n_clusters)
-    wt.plot_vweb_smooth(data=web_df, fout=f_out, grid=128, use_thresh=False, ordered_envs=number_sort, title=title_str, envs=envs)
+    f_out = 'output/voids_kmeans_' + simu + '_' + str_grid + '_k' + str(n_clusters) + '.png'
+    print('Plotting smooth density to ', f_out)
+    wt.plot_vweb_smooth(data=web_k, fout=f_out, grid=128, use_thresh=False, ordered_envs=number_sort, title=title_str, envs=envs)
     
-    web_df['envk_std'] = kmeans.labels_
-    web_df = wt.order_kmeans(data=web_df, nk=n_clusters)
+    web_k['envk_std'] = kmeans.labels_
+    web_k = wt.order_kmeans(data=web_k, nk=n_clusters)
     f_out = 'output/evs_project_' + simu + '_'
-    wt.plot2d(data=web_df, f_out=f_out); exit()
+    wt.plot2d(data=web_k, f_out=f_out); 
+
+    print('Plotting densities...')
+    f_out = 'output/web_dens_' + simu + '_'
+    wt.plot_densities(data=web_k, cols=cols, f_out=f_out)
+    
+    exit()
+
 
     thresh = [i * 0.01 for i in range(0, 60)]
     all_avg = []
     all_tot = []
     all_avg_m = []
     all_tot_m = []
+
+    #exit()
 
     for th in thresh:
         web_df = wt.std_vweb(data=web_df, thresh=th)
@@ -1014,11 +1034,6 @@ if __name__ == "__main__":
     cols.append('envk')
     #print(cols)
     #print(web_df.head())
-
-    print('Plotting densities...')
-    f_out = 'output/web_dens_' + simu + '_'
-    wt.plot_densities(data=web_df, cols=cols, f_out=f_out)
-
 '''
     web_df['envk_std'] = kmeans.labels_
     web_df = wt.order_kmeans(data=web_df)
